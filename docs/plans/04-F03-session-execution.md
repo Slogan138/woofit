@@ -19,7 +19,10 @@
 
 - ✅ `WorkoutSession.start(from:)`, `markSuccess()`, `markFailure(actualReps:)`, `clearResult()`
 - ✅ 진행 상태 프로퍼티 (`currentExercise`, `nextPendingSet`, `recordedSetCount`)
-- F-09 (직전 기록) — 화면에 띄우려면 필요
+- ✅ `LastRecordLookup` — 직전 기록 조회. **여기서 직접 호출한다**
+
+**07-F09 를 기다리지 않는다.** 조회 로직은 이미 완료돼 있어 이 작업에서 바로 쓴다.
+07-F09 가 다루는 것은 편집기·워치 등 **나머지 통합 지점**이라 이 문서보다 뒤에 온다.
 
 **도메인 로직은 이미 완료.** 남은 것은 화면과 상태 관리다.
 
