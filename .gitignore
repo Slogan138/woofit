@@ -1,0 +1,24 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Xcode user-specific state (프로젝트 파일 자체는 커밋, 사용자 상태만 제외)
+xcuserdata/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved.bak
+
+# macOS
+.DS_Store
