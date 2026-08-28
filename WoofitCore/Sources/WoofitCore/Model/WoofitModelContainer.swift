@@ -22,7 +22,7 @@ public enum WoofitModelContainer {
     /// 앱에서 쓰는 영구 저장소.
     ///
     /// - Parameter cloudKitContainerID: `nil` 이면 로컬 전용.
-    ///   유료 계정 등록 후 `"iCloud.com.woofit.app"` 같은 값을 넘기면 iCloud 동기화로 전환된다.
+    ///   유료 계정 등록 후 `"iCloud.io.jwp.woofit"` 같은 값을 넘기면 iCloud 동기화로 전환된다.
     public static func makeContainer(cloudKitContainerID: String? = nil) throws -> ModelContainer {
         let configuration: ModelConfiguration
         if let cloudKitContainerID {
