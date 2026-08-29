@@ -12,6 +12,11 @@ struct WatchRoutinePreviewView: View {
 
     var body: some View {
         List {
+            if !routine.sortedExercises.isEmpty {
+                Button("시작", action: start)
+                    .buttonStyle(.borderedProminent)
+            }
+
             if routine.isScheduled {
                 Text(Weekday.label(mask: routine.weekdayMask))
                     .font(.caption2)
@@ -25,11 +30,6 @@ struct WatchRoutinePreviewView: View {
                             .font(.caption)
                     }
                 }
-            }
-
-            if !routine.sortedExercises.isEmpty {
-                Button("시작", action: start)
-                    .buttonStyle(.borderedProminent)
             }
         }
         .navigationTitle(routine.resolvedTitle)
