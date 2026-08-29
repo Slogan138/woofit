@@ -558,6 +558,7 @@ WorkoutSession
 ├─ startedAt: Date
 ├─ endedAt: Date?
 ├─ stateRaw: String              inProgress · completed · abandoned
+├─ note: String                  세션 메모. 과거 일지의 비고를 담는다(F-13)
 └─ SessionExercise
    ├─ id: UUID
    ├─ name: String

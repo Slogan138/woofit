@@ -17,6 +17,8 @@ public final class WorkoutSession {
     public var stateRaw: String = SessionState.inProgress.rawValue
     /// 일시정지 시작 시각. 일시정지 중일 때만 값이 있다. 세션 복원에 쓴다(F-3).
     public var pausedAt: Date?
+    /// 과거 운동일지 가져오기(F-13)의 비고 열. 무게를 그렇게 정한 판단 근거 등을 담는다.
+    public var note: String = ""
 
     @Relationship(deleteRule: .cascade, inverse: \SessionExercise.session)
     public var exercises: [SessionExercise]? = []
