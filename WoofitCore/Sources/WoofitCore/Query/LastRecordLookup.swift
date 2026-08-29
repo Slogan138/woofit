@@ -66,8 +66,24 @@ public enum LastRecordLookup {
         for routine: Routine,
         in context: ModelContext
     ) throws -> [String: LastRecord] {
+        try fetchAll(for: routine.sortedExercises, in: context)
+    }
+
+    /// 세션(스냅샷) 전체의 직전 기록을 한 번에 모은다.
+    /// 세션 실행 화면 진입 시 종목마다 개별 조회하지 않도록 쓴다(F-3).
+    public static func fetchAll(
+        for session: WorkoutSession,
+        in context: ModelContext
+    ) throws -> [String: LastRecord] {
+        try fetchAll(for: session.sortedExercises, in: context)
+    }
+
+    private static func fetchAll(
+        for exercises: [some NormalizedNamedExercise],
+        in context: ModelContext
+    ) throws -> [String: LastRecord] {
         var result: [String: LastRecord] = [:]
-        for exercise in routine.sortedExercises {
+        for exercise in exercises {
             let key = exercise.normalizedName
             guard result[key] == nil else { continue }
             if let record = try fetch(normalizedName: key, in: context) {
@@ -77,3 +93,11 @@ public enum LastRecordLookup {
         return result
     }
 }
+
+/// `fetchAll` 이 루틴 종목·세션 종목 어느 쪽이든 같은 방식으로 받게 하는 최소 인터페이스.
+private protocol NormalizedNamedExercise {
+    var normalizedName: String { get }
+}
+
+extension PlannedExercise: NormalizedNamedExercise {}
+extension SessionExercise: NormalizedNamedExercise {}

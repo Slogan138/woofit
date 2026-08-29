@@ -5,6 +5,9 @@ import WoofitCore
 struct RoutineDetailView: View {
     let routine: Routine
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(SessionCoordinator.self) private var coordinator
+
     var body: some View {
         List {
             Section {
@@ -24,6 +27,16 @@ struct RoutineDetailView: View {
                         )
                     }
                 }
+            }
+
+            if !routine.sortedExercises.isEmpty {
+                Button("시작") {
+                    coordinator.start(from: routine, in: modelContext)
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
+                .listRowInsets(EdgeInsets())
+                .padding()
             }
         }
         .navigationTitle(routine.resolvedTitle)
@@ -48,4 +61,6 @@ struct RoutineDetailView: View {
     return NavigationStack {
         RoutineDetailView(routine: routine)
     }
+    .environment(SessionCoordinator())
+    .modelContainer(try! WoofitModelContainer.makeInMemoryContainer())
 }
