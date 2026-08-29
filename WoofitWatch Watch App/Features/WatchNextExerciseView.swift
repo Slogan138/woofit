@@ -16,20 +16,21 @@ struct WatchNextExerciseView: View {
         ScrollView {
             VStack(spacing: 8) {
                 Text("\(from.name) 완료")
-                    .font(.caption2)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
                 Text(to.name)
-                    .font(.headline)
+                    .font(Typography.itemName)
                     .multilineTextAlignment(.center)
                 Text("\(to.sortedSets.count)세트")
-                    .font(.caption2)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
 
                 // 화면이 작아 세트별 목표를 다 보여줄 수 없다. 세트마다 목표가
                 // 같을 때만 대표값을 보여주고, 피라미드 세트는 시작해서 확인한다.
                 if let target = to.uniformTarget {
                     Text(WeightFormatter.target(weight: target.weight, reps: target.reps))
-                        .font(.title3.monospacedDigit())
+                        .font(Typography.value)
+                        .monospacedDigit()
                 }
 
                 Button("시작", action: onStart)
@@ -38,8 +39,8 @@ struct WatchNextExerciseView: View {
                 if lastRecordedSet != nil {
                     Button("직전 기록 되돌리기", action: onUndoLast)
                         .buttonStyle(.plain)
-                        .foregroundStyle(.blue)
-                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .font(Typography.secondary)
                 }
             }
             .padding(.horizontal, 2)

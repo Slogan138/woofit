@@ -19,7 +19,7 @@ struct WatchRoutinePreviewView: View {
 
             if routine.isScheduled {
                 Text(Weekday.label(mask: routine.weekdayMask))
-                    .font(.caption2)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
 
@@ -27,7 +27,7 @@ struct WatchRoutinePreviewView: View {
                 Section(exercise.name) {
                     ForEach(exercise.sortedSets) { set in
                         Text(WeightFormatter.target(weight: set.targetWeight, reps: set.targetReps))
-                            .font(.caption)
+                            .font(Typography.secondary)
                     }
                 }
             }

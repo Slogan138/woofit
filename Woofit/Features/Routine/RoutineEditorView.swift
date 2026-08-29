@@ -64,7 +64,7 @@ struct RoutineEditorView: View {
                         HStack(spacing: 6) {
                             ForEach(filteredSuggestions, id: \.normalizedName) { candidate in
                                 Button(candidate.displayName) { addExercise(named: candidate.displayName) }
-                                    .font(.caption)
+                                    .font(Typography.secondary)
                                     .buttonStyle(.bordered)
                             }
                         }

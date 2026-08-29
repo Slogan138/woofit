@@ -136,7 +136,7 @@ private struct RoutineRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(routine.resolvedTitle)
-                .font(.headline)
+                .font(Typography.itemName)
             HStack(spacing: 6) {
                 if !routine.category.isEmpty {
                     Text(routine.category)
@@ -146,7 +146,7 @@ private struct RoutineRow: View {
                     Text("· \(Weekday.label(mask: routine.weekdayMask))")
                 }
             }
-            .font(.caption)
+            .font(Typography.secondary)
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
@@ -155,13 +155,13 @@ private struct RoutineRow: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button("삭제", systemImage: "trash", role: .destructive, action: onDelete)
             Button("복제", systemImage: "plus.square.on.square", action: onDuplicate)
-                .tint(.orange)
+                .tint(ColorRole.accent)
             Button("마크다운", systemImage: "doc.on.doc", action: onExport)
-                .tint(.accentColor)
+                .tint(ColorRole.accent)
         }
         .swipeActions(edge: .leading) {
             Button("편집", systemImage: "pencil", action: onEdit)
-                .tint(.blue)
+                .tint(ColorRole.accent)
         }
     }
 }

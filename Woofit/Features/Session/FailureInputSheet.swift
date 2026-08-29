@@ -24,6 +24,7 @@ struct FailureInputSheet: View {
             Form {
                 Section("실제 횟수") {
                     Stepper(value: $actualReps, in: 0...max(set.targetReps, actualReps)) {
+                        // 각 섹션에서 지금 편집 중인 값이라 `Typography.value` 보다 한 단계 키운다.
                         Text("\(actualReps)회")
                             .font(.title2.monospacedDigit())
                     }

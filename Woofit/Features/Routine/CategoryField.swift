@@ -13,7 +13,7 @@ struct CategoryField: View {
                 HStack(spacing: 6) {
                     ForEach(Self.presets, id: \.self) { preset in
                         Button(preset) { category = preset }
-                            .font(.caption)
+                            .font(Typography.secondary)
                             .buttonStyle(.bordered)
                             .tint(category == preset ? Color.accentColor : Color.secondary)
                     }

@@ -85,17 +85,18 @@ struct WatchSetView: View {
             VStack(spacing: 10) {
                 if let set = runner.focusedSet {
                     Text(exercise.name)
-                        .font(.headline)
+                        .font(Typography.itemName)
                         .multilineTextAlignment(.center)
                     Text("\(set.order + 1)세트")
-                        .font(.caption2)
+                        .font(Typography.secondary)
                         .foregroundStyle(.secondary)
                     Text(WeightFormatter.target(weight: set.targetWeight, reps: set.targetReps))
-                        .font(.title3.monospacedDigit())
+                        .font(Typography.value)
+                        .monospacedDigit()
 
                     if let record = runner.focusedLastRecord {
                         Text(record.compactSummary)
-                            .font(.caption2)
+                            .font(Typography.secondary)
                             .foregroundStyle(.secondary)
                     }
 
@@ -106,13 +107,15 @@ struct WatchSetView: View {
                     HStack(spacing: 6) {
                         Button("실패") { pendingFailureSet = set }
                             .buttonStyle(.bordered)
-                            .tint(.red)
+                            .tint(SetResult.failure.tintColor)
                         Button("성공") { runner.recordSuccess(for: set) }
                             .buttonStyle(.borderedProminent)
                     }
+                    // 땀 손으로 가장 자주 누르는 버튼이라 최소 터치 영역을 키운다(디자인 토큰 계획 ⑤).
+                    .controlSize(.large)
 
                     Text("\(runner.session.completedExerciseCount)/\(runner.session.totalExerciseCount) 종목 · \(runner.session.recordedSetCount)/\(runner.session.totalSetCount) 세트")
-                        .font(.caption2)
+                        .font(Typography.secondary)
                         .foregroundStyle(.secondary)
                 }
 
@@ -121,8 +124,8 @@ struct WatchSetView: View {
                 if let last = runner.lastRecordedSet {
                     Button("\(last.order + 1)세트 되돌리기") { runner.undo(last) }
                         .buttonStyle(.plain)
-                        .foregroundStyle(.blue)
-                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .font(Typography.secondary)
                 }
             }
             .padding(.horizontal, 2)
@@ -137,7 +140,7 @@ struct WatchSetView: View {
     private var finishedContent: some View {
         VStack(spacing: 10) {
             Text("모든 세트를 기록했습니다")
-                .font(.headline)
+                .font(Typography.itemName)
                 .multilineTextAlignment(.center)
             // phase 가 finished 로 바뀌는 순간 SessionRunner 가 이미 세션을 완료 처리했으므로
             // 여기서는 화면만 닫는다(F-4).

@@ -57,9 +57,9 @@ private struct RoutineCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(routine.resolvedTitle)
-                .font(.headline)
+                .font(Typography.itemName)
             Text("\(routine.sortedExercises.count)종목 · \(routine.totalSetCount)세트")
-                .font(.caption2)
+                .font(Typography.secondary)
                 .foregroundStyle(.secondary)
         }
     }

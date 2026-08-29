@@ -13,13 +13,13 @@ struct SessionHistoryView: View {
                 NavigationLink(value: session) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(session.routineName)
-                            .font(.headline)
+                            .font(Typography.itemName)
                         HStack(spacing: 6) {
                             Text(session.startedAt, format: .dateTime.month().day())
                             Text("· \(session.successSetCount)/\(session.totalSetCount) 세트")
                             Text("· \(session.state.displayName)")
                         }
-                        .font(.caption)
+                        .font(Typography.secondary)
                         .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 2)
