@@ -26,6 +26,12 @@ public enum Weekday: Int, CaseIterable, Identifiable, Sendable {
     /// "일요일", "월요일" …
     public var fullName: String { shortName + "요일" }
 
+    /// `shortName` 의 역매핑. 마크다운 `- 반복:` 파싱과 제목의 요일 추론에 쓴다(F-7).
+    public init?(shortName: String) {
+        guard let match = Self.allCases.first(where: { $0.shortName == shortName }) else { return nil }
+        self = match
+    }
+
     /// `Calendar` 의 weekday 는 일요일이 1이므로 1을 뺀다.
     public init?(calendarWeekday: Int) {
         self.init(rawValue: calendarWeekday - 1)

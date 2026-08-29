@@ -8,6 +8,7 @@ struct RoutineListView: View {
     @Query(sort: \Routine.updatedAt, order: .reverse) private var routines: [Routine]
 
     @State private var pendingExport: MarkdownExport?
+    @State private var isImportPresented = false
 
     private var today: Weekday { .today() }
 
@@ -47,8 +48,20 @@ struct RoutineListView: View {
                     )
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isImportPresented = true
+                    } label: {
+                        Label("가져오기", systemImage: "square.and.arrow.down")
+                    }
+                }
+            }
             .sheet(item: $pendingExport) { export in
                 MarkdownPreviewView(title: export.title, markdown: export.markdown)
+            }
+            .sheet(isPresented: $isImportPresented) {
+                MarkdownImportView()
             }
         }
     }
