@@ -16,8 +16,8 @@ struct SessionCompleteView: View {
 
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.green)
+                        .font(Typography.screenTitle)
+                        .foregroundStyle(SetResult.success.tintColor)
                     Text("세션 완료")
                         .font(Typography.screenTitle)
                 }
