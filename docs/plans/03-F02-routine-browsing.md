@@ -17,13 +17,15 @@
 ## 작업 단위
 
 **M1 (폰)**
-- [ ] 1. `RoutineListView` 정렬 — 오늘 → 요일 순 → 미지정
-- [ ] 2. `RoutineDetailView` — 전 종목·전 세트 표시
-- [ ] 3. 목록에서 세션 시작 진입
+- [x] 1. `RoutineListView` 정렬 — 오늘 → 요일 순 → 미지정
+- [x] 2. `RoutineDetailView` — 전 종목·전 세트 표시
+- [ ] 3. 목록에서 세션 시작 진입 — **04-F03 로 이동.** 진입 대상인 `SessionRunnerView` 가
+      F-03 소관이라 지금은 목적지가 없다. F-03 착수 시 `RoutineListView`/`RoutineDetailView`
+      에서 `WorkoutSession.start(from:)` 을 호출하는 버튼을 그때 추가한다.
 
 **M2 (워치)**
-- [ ] 4. `WatchRootView` — 오늘의 루틴 카드 강조
-- [ ] 5. `WatchRoutinePreviewView` — 시작 전 훑기 (W2)
+- [x] 4. `WatchRootView` — 오늘의 루틴 카드 강조
+- [x] 5. `WatchRoutinePreviewView` — 시작 전 훑기 (W2)
 
 ## 파일
 

@@ -13,11 +13,11 @@ struct RoutineListView: View {
     private var today: Weekday { .today() }
 
     private var todaysRoutines: [Routine] {
-        routines.filter { $0.isScheduled(on: today) }
+        RoutineOrdering.forList(routines, today: today).filter { $0.isScheduled(on: today) }
     }
 
     private var otherRoutines: [Routine] {
-        routines.filter { !$0.isScheduled(on: today) }
+        RoutineOrdering.forList(routines, today: today).filter { !$0.isScheduled(on: today) }
     }
 
     var body: some View {
@@ -26,17 +26,24 @@ struct RoutineListView: View {
                 if !todaysRoutines.isEmpty {
                     Section("오늘 · \(today.fullName)") {
                         ForEach(todaysRoutines) { routine in
-                            RoutineRow(routine: routine, onExport: { export(routine) })
+                            NavigationLink(value: routine) {
+                                RoutineRow(routine: routine, onExport: { export(routine) })
+                            }
                         }
                     }
                 }
                 if !otherRoutines.isEmpty {
                     Section(todaysRoutines.isEmpty ? "루틴" : "다른 루틴") {
                         ForEach(otherRoutines) { routine in
-                            RoutineRow(routine: routine, onExport: { export(routine) })
+                            NavigationLink(value: routine) {
+                                RoutineRow(routine: routine, onExport: { export(routine) })
+                            }
                         }
                     }
                 }
+            }
+            .navigationDestination(for: Routine.self) { routine in
+                RoutineDetailView(routine: routine)
             }
             .navigationTitle("Woofit")
             .overlay {
