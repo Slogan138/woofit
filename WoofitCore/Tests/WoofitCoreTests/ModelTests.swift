@@ -203,7 +203,7 @@ func lastRecordSkipsInProgressSessions() throws {
     #expect(record.succeededAllSets == false)
     #expect(record.successCount == 2)
     #expect(record.topWeight == 80)
-    #expect(record.summary.contains("80kg ✅✅❌(3)"))
+    #expect(record.summary().contains("80kg ✅✅❌(3)"))
 }
 
 @MainActor

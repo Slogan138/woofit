@@ -15,7 +15,7 @@ public enum RoutineMarkdownExporter {
         lines.append("")
         lines.append(contentsOf: metaLines(for: routine))
         lines.append("")
-        lines.append(table(for: routine, lastRecords: lastRecords))
+        lines.append(table(for: routine, lastRecords: lastRecords, style: style))
         return lines.joined(separator: "\n")
     }
 
@@ -35,7 +35,7 @@ public enum RoutineMarkdownExporter {
         return lines
     }
 
-    private static func table(for routine: Routine, lastRecords: [String: LastRecord]) -> String {
+    private static func table(for routine: Routine, lastRecords: [String: LastRecord], style: MarkdownStyle) -> String {
         let headers = ["종목", "목표", "세트", "지난 기록"]
         let rows = routine.sortedExercises.map { exercise -> [String] in
             let sets = exercise.sortedSets
@@ -43,7 +43,7 @@ public enum RoutineMarkdownExporter {
                 exercise.name,
                 targetLabel(for: sets),
                 "\(sets.count)",
-                lastRecords[exercise.normalizedName]?.summary ?? "",
+                lastRecords[exercise.normalizedName]?.summary(resultSymbol: style.resultSymbol) ?? "",
             ]
         }
         return MarkdownTable.render(headers: headers, rows: rows)

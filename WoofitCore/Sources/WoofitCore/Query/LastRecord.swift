@@ -44,22 +44,27 @@ public extension LastRecord {
     /// 다룬 무게 중 가장 무거운 값.
     var topWeight: Double { entries.map(\.weight).max() ?? 0 }
 
-    /// 마크다운 `지난 기록` 열과 화면 한 줄에 함께 쓰는 요약(PRD §6.3).
+    /// 마크다운 `지난 기록` 열과 화면 한 줄에 함께 쓰는 요약(PRD §6.3, §6.4).
     /// 예: `80kg ✅✅✅✅❌(3) · 8/24`
-    var summary: String {
+    /// 이모지는 한 글자씩 붙여도 경계가 보이지만, 텍스트는 그렇지 않아 공백으로 구분한다.
+    func summary(resultSymbol: MarkdownStyle.ResultSymbol = .emoji) -> String {
         guard !entries.isEmpty else { return "" }
 
         let weightPart = WeightFormatter.string(topWeight)
         let marks = entries.map { entry -> String in
-            switch entry.result {
-            case .success: "✅"
-            case .failure: "❌(\(entry.performedReps))"
-            case .skipped: "⏭"
-            case .pending: ""
+            switch (entry.result, resultSymbol) {
+            case (.success, .emoji): "✅"
+            case (.success, .text): "성공"
+            case (.failure, .emoji): "❌(\(entry.performedReps))"
+            case (.failure, .text): "실패(\(entry.performedReps))"
+            case (.skipped, .emoji): "⏭"
+            case (.skipped, .text): "건너뜀"
+            case (.pending, _): ""
             }
-        }.joined()
+        }
+        let separator = resultSymbol == .emoji ? "" : " "
 
-        return "\(weightPart) \(marks) · \(LastRecord.dateFormatter.string(from: performedAt))"
+        return "\(weightPart) \(marks.joined(separator: separator)) · \(LastRecord.dateFormatter.string(from: performedAt))"
     }
 
     /// 워치처럼 폭이 좁은 화면용. 첫 세트 목표와 전체 성공 여부만 압축한다.

@@ -186,6 +186,19 @@ func verticalFormatListsOneRowPerSet() {
     #expect(markdown == expected)
 }
 
+@Test("형식 B는 resultSymbol 설정과 무관하게 항상 텍스트로 결과를 적는다")
+func verticalFormatIgnoresResultSymbolStyle() {
+    let routine = Routine(name: "가슴", category: "가슴")
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 1, weight: 80, reps: 5)
+
+    let session = WorkoutSession.start(from: routine)
+    session.allSets[0].markSuccess()
+
+    let style = MarkdownStyle(layout: .verticalSets, resultSymbol: .text)
+    let markdown = SessionMarkdownExporter.export(session, style: style)
+    #expect(markdown.contains("| 벤치프레스 | 1 | 80kg × 5 | 성공 | |"))
+}
+
 // MARK: - 루틴 형식 (§6.3)
 
 @Test("루틴 형식이 PRD §6.3 예시와 일치한다")
@@ -244,6 +257,29 @@ func routineFormatBlanksMissingLastRecord() {
 
     let markdown = RoutineMarkdownExporter.export(routine)
     #expect(markdown.contains("| 랫풀다운 | 40kg × 10 | 3 | |"))
+}
+
+@Test("이모지 대신 텍스트 표기 옵션이 루틴의 지난 기록 열에도 적용된다")
+func routineFormatSupportsTextSymbolsInLastRecordColumn() {
+    let routine = Routine(name: "가슴", category: "가슴")
+    let bench = routine.appendExercise(named: "벤치프레스")
+    bench.appendSets(count: 2, weight: 80, reps: 5)
+
+    let lastRecords: [String: LastRecord] = [
+        bench.normalizedName: LastRecord(
+            normalizedName: bench.normalizedName,
+            displayName: bench.name,
+            performedAt: date(2026, 8, 24),
+            entries: [
+                LastRecord.Entry(weight: 80, targetReps: 5, performedReps: 5, result: .success),
+                LastRecord.Entry(weight: 80, targetReps: 5, performedReps: 3, result: .failure),
+            ]
+        ),
+    ]
+
+    let style = MarkdownStyle(resultSymbol: .text)
+    let markdown = RoutineMarkdownExporter.export(routine, lastRecords: lastRecords, style: style)
+    #expect(markdown.contains("| 벤치프레스 | 80kg × 5 | 2 | 80kg 성공 실패(3) · 8/24 |"))
 }
 
 // MARK: - MarkdownTable 이스케이프
