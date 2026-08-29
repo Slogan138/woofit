@@ -33,6 +33,17 @@ func unscheduledRoutineGoesLast() {
     #expect(ordered.map(\.name) == ["월요일", "미지정"])
 }
 
+@Test("같은 우선순위 그룹 안에서는 입력 순서가 유지된다")
+func sameGroupPreservesInputOrder() {
+    let a = Routine(name: "미지정 A")
+    let b = Routine(name: "미지정 B")
+    let c = Routine(name: "미지정 C")
+
+    let ordered = RoutineOrdering.forList([a, b, c], today: .sunday)
+
+    #expect(ordered.map(\.name) == ["미지정 A", "미지정 B", "미지정 C"])
+}
+
 @Test("여러 요일에 배정된 루틴은 가장 이른 요일 기준으로 정렬된다")
 func multiWeekdayRoutineSortsByEarliestWeekday() {
     // 화·금 배정 루틴은 화요일 기준으로, 수요일 단독 루틴보다 앞에 온다.

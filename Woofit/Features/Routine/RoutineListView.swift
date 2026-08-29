@@ -12,15 +12,11 @@ struct RoutineListView: View {
 
     private var today: Weekday { .today() }
 
-    private var todaysRoutines: [Routine] {
-        RoutineOrdering.forList(routines, today: today).filter { $0.isScheduled(on: today) }
-    }
-
-    private var otherRoutines: [Routine] {
-        RoutineOrdering.forList(routines, today: today).filter { !$0.isScheduled(on: today) }
-    }
-
     var body: some View {
+        let ordered = RoutineOrdering.forList(routines, today: today)
+        let todaysRoutines = ordered.filter { $0.isScheduled(on: today) }
+        let otherRoutines = ordered.filter { !$0.isScheduled(on: today) }
+
         NavigationStack {
             List {
                 if !todaysRoutines.isEmpty {
