@@ -583,3 +583,103 @@ func focusedLastRecordLooksUpByExercise() throws {
     let runner = SessionRunner(session: session, lastRecords: lastRecords)
     #expect(runner.focusedLastRecord?.succeededAllSets == true)
 }
+
+// MARK: - 휴식 측정 (F-5)
+
+@MainActor
+@Test("탭 한 번으로 방금 기록한 세트의 휴식이 시작되고, 다시 탭하면 종료된다")
+func toggleRestStartsOnLastRecordedSetThenStops() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let first = try #require(runner.focusedSet)
+    let start = Date()
+    runner.recordSuccess(at: start)
+
+    runner.toggleRest(at: start)
+    #expect(runner.restingSet?.id == first.id)
+    #expect(first.isRestRunning)
+
+    runner.toggleRest(at: start.addingTimeInterval(90))
+    #expect(runner.restingSet == nil)
+    #expect(first.restSeconds == 90)
+}
+
+@MainActor
+@Test("측정 중인 세트를 세션에서 찾을 수 있다")
+func restingSetIsExposedByRunner() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    #expect(runner.restingSet == nil)
+
+    let target = try #require(runner.focusedSet)
+    runner.recordSuccess()
+    runner.toggleRest()
+
+    #expect(runner.restingSet?.id == target.id)
+}
+
+@MainActor
+@Test("휴식 측정 중 다음 세트를 기록하면 이전 세트의 휴식이 자동 종료된다")
+func recordingNextSetAutoStopsPreviousSetsRest() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let first = try #require(runner.focusedSet)
+    let start = Date()
+    runner.recordSuccess(at: start)
+    runner.toggleRest(at: start)
+    #expect(first.isRestRunning)
+
+    runner.recordSuccess(at: start.addingTimeInterval(60))
+
+    #expect(first.isRestRunning == false)
+    #expect(first.restSeconds == 60)
+    #expect(runner.restingSet == nil)
+}
+
+@MainActor
+@Test("세션을 복원해도 측정 중이던 휴식이 이어진다")
+func restoringSessionKeepsRestingTimerRunning() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    // 세트가 하나만 남아 있으면 기록과 동시에 세션이 완료 처리되며 휴식도 함께
+    // 종료되므로, 복원 시점에 측정이 이어지는 상황을 흉내내려면 세트가 더 남아 있어야 한다.
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let target = try #require(runner.focusedSet)
+    let startedAt = Date()
+    runner.recordSuccess(at: startedAt)
+    runner.toggleRest(at: startedAt)
+
+    // 앱을 재시작한 것처럼 같은 세션으로 새 러너를 만든다 — restStartedAt 은
+    // SwiftData 에 저장된 값이라 새 러너도 곧바로 이어받는다(F-5 설계 메모).
+    let restoredRunner = SessionRunner(session: session)
+
+    #expect(restoredRunner.restingSet?.id == target.id)
+    #expect(restoredRunner.restingSet?.restStartedAt == startedAt)
+}

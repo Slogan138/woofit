@@ -69,6 +69,7 @@ public final class SessionRunner: Identifiable, Hashable {
     /// 목표대로 성공. 1탭으로 끝난다.
     public func recordSuccess(for set: SessionSet? = nil, at date: Date = Date()) {
         guard let target = set ?? focusedSet else { return }
+        stopOtherRest(than: target, at: date)
         target.markSuccess(at: date)
         lastRecordedSet = target
         advanceFocus()
@@ -83,6 +84,7 @@ public final class SessionRunner: Identifiable, Hashable {
         at date: Date = Date()
     ) {
         guard let target = set ?? focusedSet else { return }
+        stopOtherRest(than: target, at: date)
         target.markFailure(actualReps: actualReps, actualWeight: actualWeight, at: date)
         lastRecordedSet = target
         advanceFocus()
@@ -91,6 +93,7 @@ public final class SessionRunner: Identifiable, Hashable {
 
     public func skip(_ set: SessionSet? = nil, at date: Date = Date()) {
         guard let target = set ?? focusedSet else { return }
+        stopOtherRest(than: target, at: date)
         target.markSkipped(at: date)
         lastRecordedSet = target
         advanceFocus()
@@ -108,6 +111,19 @@ public final class SessionRunner: Identifiable, Hashable {
         if lastRecordedSet?.id == set.id { lastRecordedSet = nil }
         focusedSet = set
         refreshPhase(around: set.exercise)
+    }
+
+    /// 측정 중인 휴식. 화면 어디를 탭했는지와 상관없이 이걸로 시작·종료를 판정한다(F-5).
+    public var restingSet: SessionSet? { session.restingSet }
+
+    /// 화면 탭 한 번으로 시작·종료를 겸한다. 측정 중이면 종료하고, 아니면 가장 최근
+    /// 기록한 세트에 대해 시작한다 — 그래야 "직전 세트의 휴식 시간"이 된다(F-5).
+    public func toggleRest(at date: Date = Date()) {
+        if let resting = restingSet {
+            resting.stopRest(at: date)
+        } else {
+            lastRecordedSet?.startRest(at: date)
+        }
     }
 
     public func pause(at date: Date = Date()) {
@@ -128,6 +144,13 @@ public final class SessionRunner: Identifiable, Hashable {
 
     private func advanceFocus() {
         focusedSet = session.nextPendingSet
+    }
+
+    /// 측정 중인 세트가 지금 기록하려는 세트와 다르면 먼저 종료한다. 같은 세트면
+    /// `markSuccess` 등이 자체적으로 종료하므로 건드리지 않는다(F-5).
+    private func stopOtherRest(than target: SessionSet, at date: Date) {
+        guard let resting = session.restingSet, resting.id != target.id else { return }
+        resting.stopRest(at: date)
     }
 
     /// 모든 phase 변경이 거치는 단일 진입점. `exercise` 가 아직 안 끝났으면 계속

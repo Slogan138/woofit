@@ -99,6 +99,10 @@ struct WatchSetView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    if let resting = runner.restingSet, let startedAt = resting.restStartedAt {
+                        WatchRestView(startedAt: startedAt)
+                    }
+
                     HStack(spacing: 6) {
                         Button("실패") { pendingFailureSet = set }
                             .buttonStyle(.bordered)
@@ -122,6 +126,11 @@ struct WatchSetView: View {
                 }
             }
             .padding(.horizontal, 2)
+            .contentShape(Rectangle())
+            // 버튼·되돌리기 링크의 제스처가 더 안쪽이라 우선하므로, 여기 닿는 탭은
+            // 그 밖의 화면 전체를 뜻한다(F-5 수용 기준). 배터리 때문에 Timer 대신
+            // WatchRestView 가 TimelineView 로 표시만 갱신한다.
+            .onTapGesture { runner.toggleRest() }
         }
     }
 

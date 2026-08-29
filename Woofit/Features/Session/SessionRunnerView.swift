@@ -21,6 +21,9 @@ struct SessionRunnerView: View {
         List {
             Section {
                 ProgressRow(runner: runner)
+                if let resting = runner.restingSet, let startedAt = resting.restStartedAt {
+                    RestTimerView(startedAt: startedAt)
+                }
                 Button("다른 종목으로 이동") { isShowingExercisePicker = true }
             }
 
@@ -41,7 +44,11 @@ struct SessionRunnerView: View {
                         )
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if set.result == .pending { runner.focus(on: set) }
+                            if set.result == .pending {
+                                runner.focus(on: set)
+                            } else {
+                                runner.toggleRest()
+                            }
                         }
                     }
                 } header: {
@@ -49,6 +56,9 @@ struct SessionRunnerView: View {
                 }
             }
         }
+        // 세트 행·버튼 자체의 제스처가 더 안쪽이라 우선하므로, 여기 닿는 탭은
+        // 버튼도 세트 포커스도 아닌 "그 밖의 화면 전체"뿐이다(F-5 수용 기준).
+        .onTapGesture { runner.toggleRest() }
         // 일시정지·전환·완료 오버레이는 화면만 가릴 뿐 탭 자체는 막지 않으므로,
         // VoiceOver 등 접근성 조작으로 뒤에서 기록되는 걸 막기 위해 직접 비활성화한다.
         .disabled(isShowingFullScreenOverlay)
