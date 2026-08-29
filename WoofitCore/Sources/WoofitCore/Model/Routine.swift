@@ -87,6 +87,27 @@ public extension Routine {
         touch()
     }
 
+    /// 세트가 없는 종목. 그대로 저장하면 마크다운 왕복에서 조용히 사라지므로
+    /// 편집기가 저장 전에 경고할 때 쓴다(06-F01 계획 "빈 종목 처리").
+    var emptyExercises: [PlannedExercise] {
+        sortedExercises.filter { $0.sortedSets.isEmpty }
+    }
+
+    /// 종목을 컨텍스트와 관계 배열 양쪽에서 지운다. 배열에서만 빼면 SwiftData
+    /// 저장소에는 고아로 남는다 — `ParsedRoutine.apply(to:)` 와 같은 패턴.
+    func removeExercise(_ exercise: PlannedExercise) {
+        modelContext?.delete(exercise)
+        exercises = sortedExercises.filter { $0.id != exercise.id }
+        reindexExercises()
+    }
+
+    /// 세트 없는 종목을 전부 지운다. 사용자가 빈 종목 경고에서 "종목 빼고 저장"을 골랐을 때 쓴다.
+    func removeEmptyExercises() {
+        for exercise in emptyExercises {
+            removeExercise(exercise)
+        }
+    }
+
     func touch(_ date: Date = Date()) {
         updatedAt = date
     }

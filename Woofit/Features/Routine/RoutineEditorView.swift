@@ -7,6 +7,11 @@ import WoofitCore
 /// `isNew` 면 `routine` 은 아직 컨텍스트에 들어가지 않은 상태로 넘어온다. 화면 안에서는
 /// 메모리 위에서만 종목·세트를 쌓다가, 저장을 눌러야 비로소 컨텍스트에 들어간다.
 /// 그래야 만들다 만 빈 루틴이 목록에 유령처럼 남지 않는다.
+///
+/// 기존 루틴 편집은 반대다 — `routine` 이 이미 컨텍스트에 있어 `@Bindable` 로 고치는 즉시
+/// 저장소에 반영된다. 되돌리기를 지원하려면 진입 시 스냅샷을 떠 취소 시 복원해야 하는데,
+/// 이 화면 규모에 비해 과한 장치라 판단해 "취소" 자체를 없앴다 — 요일도 같은 즉시 반영으로
+/// 맞춰 "완료" 하나만 남긴다.
 struct RoutineEditorView: View {
     @Bindable var routine: Routine
     let isNew: Bool
@@ -71,16 +76,31 @@ struct RoutineEditorView: View {
         .navigationTitle(isNew ? "새 루틴" : "루틴 편집")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("취소") { dismiss() }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("저장", action: attemptSave)
+            if isNew {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("저장", action: attemptSave)
+                }
+            } else {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("완료", action: attemptSave)
+                }
             }
         }
         .onAppear {
             refreshLastRecords()
             suggestions = (try? ExerciseNameSuggester.suggest(in: modelContext)) ?? []
+        }
+        .onChange(of: weekdaySelection) { _, newValue in
+            // 기존 루틴은 다른 필드처럼 요일도 즉시 반영한다 — "취소"가 없으므로
+            // 저장 시점까지 미룰 이유가 없다. `isNew` 는 컨텍스트에 없어 여기서 배정하면
+            // 다른 루틴의 요일을 앞당겨 해제해버리므로 저장 시점까지 미룬다.
+            guard !isNew else { return }
+            // 인메모리 fetch 실패(= SwiftData 저장소 손상)만 던진다. 이 화면의 다른 fetch 도
+            // 같은 이유로 조용히 무시한다(refreshLastRecords, suggestions).
+            try? RoutineScheduler.assign(Array(newValue), to: routine, in: modelContext)
         }
         .alert("세트가 없는 종목이 있습니다", isPresented: $isShowingEmptyExerciseAlert) {
             Button("계속 편집", role: .cancel) {}
@@ -122,8 +142,7 @@ struct RoutineEditorView: View {
     }
 
     private func removeExercise(_ exercise: PlannedExercise) {
-        routine.exercises = routine.sortedExercises.filter { $0.id != exercise.id }
-        routine.reindexExercises()
+        routine.removeExercise(exercise)
         refreshLastRecords()
     }
 
@@ -136,7 +155,7 @@ struct RoutineEditorView: View {
     /// 세트가 0개인 종목은 저장 시점에 막는다(06-F01 계획 "빈 종목 처리").
     /// 허용하면 마크다운 왕복에서 그 종목이 조용히 사라진다.
     private func attemptSave() {
-        let empty = routine.sortedExercises.filter { $0.sortedSets.isEmpty }
+        let empty = routine.emptyExercises
         guard empty.isEmpty else {
             emptyExerciseNames = empty.map { $0.name.isEmpty ? "(이름 없음)" : $0.name }
             isShowingEmptyExerciseAlert = true
@@ -147,13 +166,13 @@ struct RoutineEditorView: View {
 
     private func save(droppingEmptyExercises: Bool = false) {
         if droppingEmptyExercises {
-            routine.exercises = routine.sortedExercises.filter { !$0.sortedSets.isEmpty }
-            routine.reindexExercises()
+            routine.removeEmptyExercises()
         }
         if isNew {
             modelContext.insert(routine)
+            // 인메모리 fetch 실패(= SwiftData 저장소 손상)만 던진다. 위 onChange 와 같은 이유로 무시한다.
+            try? RoutineScheduler.assign(Array(weekdaySelection), to: routine, in: modelContext)
         }
-        try? RoutineScheduler.assign(Array(weekdaySelection), to: routine, in: modelContext)
         dismiss()
     }
 }
