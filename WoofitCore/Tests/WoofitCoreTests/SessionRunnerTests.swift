@@ -115,6 +115,29 @@ func undoRestoresPendingButKeepsRest() throws {
 }
 
 @MainActor
+@Test("되돌린 세트가 가장 앞이 아니어도 그 세트로 초점이 옮겨간다")
+func undoRefocusesTheUndoneSetEvenWhenNotEarliestPending() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 4)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    // 세트 1·2·4 기록, 3은 pending 으로 남긴다.
+    let sets = session.allSets
+    sets[0].markSuccess()
+    sets[1].markSuccess()
+    sets[3].markSuccess()
+
+    let runner = SessionRunner(session: session)
+    runner.undo(sets[3])
+
+    #expect(runner.focusedSet?.id == sets[3].id)
+}
+
+@MainActor
 @Test("되돌리면 그 세트로 초점이 다시 옮겨간다")
 func undoRefocusesTheUndoneSet() throws {
     let container = try WoofitModelContainer.makeInMemoryContainer()

@@ -171,6 +171,95 @@ func unfinishedSessionIsAbandoned() throws {
     #expect(session.totalSetCount == 3)
 }
 
+// MARK: - 진행률 (F-3)
+
+@MainActor
+@Test("진행률이 종목·세트 두 기준으로 계산된다")
+func progressCountsByExerciseAndBySet() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "가슴")
+    context.insert(routine)
+    let bench = routine.appendExercise(named: "벤치프레스")
+    bench.appendSets(count: 2, weight: 80, reps: 5)
+    let fly = routine.appendExercise(named: "케이블 플라이")
+    fly.appendSets(count: 2, weight: 20, reps: 15)
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    #expect(session.totalExerciseCount == 2)
+    #expect(session.completedExerciseCount == 0)
+    #expect(session.totalSetCount == 4)
+    #expect(session.recordedSetCount == 0)
+
+    let benchExercise = session.sortedExercises[0]
+    benchExercise.sortedSets[0].markSuccess()
+    #expect(session.completedExerciseCount == 0)
+    #expect(session.recordedSetCount == 1)
+
+    benchExercise.sortedSets[1].markSuccess()
+    #expect(session.completedExerciseCount == 1)
+    #expect(session.recordedSetCount == 2)
+}
+
+@MainActor
+@Test("세트가 하나도 없는 종목은 완료로 세지 않는다")
+func exerciseWithNoSetsIsNeverCompleted() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스") // 세트를 붙이지 않는다.
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    #expect(session.totalExerciseCount == 1)
+    #expect(session.completedExerciseCount == 0)
+    #expect(session.totalSetCount == 0)
+}
+
+@MainActor
+@Test("전부 건너뛴 종목도 완료로 센다")
+func exerciseWithAllSetsSkippedCountsAsCompleted() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 2, weight: 80, reps: 5)
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    for set in session.allSets { set.markSkipped() }
+
+    #expect(session.completedExerciseCount == 1)
+    #expect(session.recordedSetCount == 2)
+    #expect(session.successSetCount == 0)
+}
+
+@MainActor
+@Test("빈 세션은 진행률이 전부 0이다")
+func emptySessionHasZeroProgress() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "빈 루틴")
+    context.insert(routine)
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    #expect(session.totalExerciseCount == 0)
+    #expect(session.completedExerciseCount == 0)
+    #expect(session.totalSetCount == 0)
+    #expect(session.recordedSetCount == 0)
+}
+
 // MARK: - 직전 기록 (F-9)
 
 @MainActor

@@ -92,11 +92,6 @@ struct SessionRunnerView: View {
 private struct ProgressRow: View {
     let runner: SessionRunner
 
-    private var exerciseTotal: Int { runner.session.sortedExercises.count }
-    private var exerciseDone: Int {
-        runner.session.sortedExercises.count { $0.isComplete }
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ProgressView(
@@ -104,7 +99,7 @@ private struct ProgressRow: View {
                 total: Double(max(runner.session.totalSetCount, 1))
             )
             HStack {
-                Text("\(exerciseDone)/\(exerciseTotal) 종목")
+                Text("\(runner.session.completedExerciseCount)/\(runner.session.totalExerciseCount) 종목")
                 Spacer()
                 Text("\(runner.session.recordedSetCount)/\(runner.session.totalSetCount) 세트")
             }
