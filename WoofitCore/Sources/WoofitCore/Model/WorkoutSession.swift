@@ -93,6 +93,10 @@ public extension WorkoutSession {
         (endedAt ?? Date()).timeIntervalSince(startedAt)
     }
 
+    var totalExerciseCount: Int { sortedExercises.count }
+
+    var completedExerciseCount: Int { sortedExercises.count { $0.isComplete } }
+
     var totalSetCount: Int { allSets.count }
 
     var recordedSetCount: Int { allSets.count { $0.result.isRecorded } }

@@ -65,7 +65,7 @@ public final class SessionRunner: Identifiable, Hashable {
     public func undo(_ set: SessionSet) {
         set.clearResult()
         if lastRecordedSet?.id == set.id { lastRecordedSet = nil }
-        focusedSet = session.nextPendingSet
+        focusedSet = set
     }
 
     public func pause(at date: Date = Date()) {
