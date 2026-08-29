@@ -2,6 +2,7 @@
 import Foundation
 import SwiftData
 import WatchConnectivity
+import os
 
 /// `WCSession` 래퍼(F-8). 전송·수신만 담당하고, 반영은 순수 함수인 `SyncMerger` 에 맡긴다.
 ///
@@ -17,12 +18,32 @@ public final class WatchSyncService: NSObject {
     private nonisolated static let inProgressSessionKey = "inProgressSession"
     private nonisolated static let setResultKey = "setResult"
     private nonisolated static let sessionSnapshotKey = "sessionSnapshot"
+    private nonisolated static let logger = Logger(subsystem: "io.jwp.woofit", category: "WatchSync")
 
     private let container: ModelContainer
     private let session: WCSession
 
     /// 가장 최근에 받은 루틴 목록. 세션을 시작할 때 직전 기록을 꺼내 쓰는 데 쓴다(F-9).
     public private(set) var latestRoutines: [RoutinePayload] = []
+
+    /// 가장 최근 전송 시도에서 발생한 오류. 화면 호출부는 대부분 `try?` 로 실패를 버리므로
+    /// (헬스장에서 전송을 기다리게 할 수 없다, F-3) 실기기 진단은 이 값과 로그에 의존한다(리뷰 지적 ②).
+    public private(set) var lastSendError: Error?
+
+    /// `.notActivated` 면 아직 `activate()` 가 끝나지 않은 것이다 — "워치 없음"과 구분해야 한다(리뷰 지적 ③).
+    public var activationState: WCSessionActivationState { session.activationState }
+
+    #if os(iOS)
+    /// 워치가 페어링돼 있는지. false 면 애초에 동기화 대상이 없다는 뜻으로, 전송 실패와는 다른 원인이다.
+    public var isPaired: Bool { session.isPaired }
+    /// 짝지어진 워치에 Woofit 워치 앱이 설치돼 있는지.
+    public var isWatchAppInstalled: Bool { session.isWatchAppInstalled }
+    #endif
+
+    #if os(watchOS)
+    /// 짝지어진 폰에 Woofit 이 설치돼 있는지.
+    public var isCompanionAppInstalled: Bool { session.isCompanionAppInstalled }
+    #endif
 
     public init(container: ModelContainer, session: WCSession = .default) {
         self.container = container
@@ -40,31 +61,37 @@ public final class WatchSyncService: NSObject {
 
     /// 루틴 전체를 워치로 내려보낸다. 항상 최신 상태로 덮어쓴다.
     public func sendRoutines(_ payloads: [RoutinePayload]) throws {
-        latestRoutines = payloads
-        var context = session.applicationContext
-        context[Self.routinesKey] = try JSONEncoder().encode(payloads)
-        try session.updateApplicationContext(context)
+        try track {
+            latestRoutines = payloads
+            var context = session.applicationContext
+            context[Self.routinesKey] = try JSONEncoder().encode(payloads)
+            try session.updateApplicationContext(context)
+        }
     }
 
     /// 로컬 저장소의 루틴 전체와 직전 기록을 모아 payload 를 만들고 그대로 내려보낸다.
     /// 화면은 언제 다시 보낼지만 정하면 되고, payload 를 어떻게 만드는지는 몰라도 된다.
     public func pushRoutines(in context: ModelContext) throws {
-        let routines = try context.fetch(FetchDescriptor<Routine>())
-        let payloads = try routines.map { routine in
-            RoutinePayload.make(from: routine, lastRecords: try LastRecordLookup.fetchAll(for: routine, in: context))
+        try track {
+            let routines = try context.fetch(FetchDescriptor<Routine>())
+            let payloads = try routines.map { routine in
+                RoutinePayload.make(from: routine, lastRecords: try LastRecordLookup.fetchAll(for: routine, in: context))
+            }
+            try sendRoutines(payloads)
         }
-        try sendRoutines(payloads)
     }
 
     /// 폰에서 시작한 세션을 워치가 이어받도록 진행 상태를 내려보낸다. `nil` 이면 이어받을 세션이 없다는 뜻.
     public func sendInProgressSession(_ payload: SessionSnapshotPayload?) throws {
-        var context = session.applicationContext
-        if let payload {
-            context[Self.inProgressSessionKey] = try JSONEncoder().encode(payload)
-        } else {
-            context.removeValue(forKey: Self.inProgressSessionKey)
+        try track {
+            var context = session.applicationContext
+            if let payload {
+                context[Self.inProgressSessionKey] = try JSONEncoder().encode(payload)
+            } else {
+                context.removeValue(forKey: Self.inProgressSessionKey)
+            }
+            try session.updateApplicationContext(context)
         }
-        try session.updateApplicationContext(context)
     }
 
     // MARK: - 워치 → 폰
@@ -72,14 +99,32 @@ public final class WatchSyncService: NSObject {
     /// 세트 하나를 기록하자마자 큐에 넣는다. 기록 자체는 로컬에 이미 끝나 있으므로
     /// 이 호출이 세트 기록 흐름을 기다리게 만들지 않는다(F-3 100ms 수용 기준).
     public func sendSetResult(_ payload: SetResultPayload) throws {
-        let data = try JSONEncoder().encode(payload)
-        session.transferUserInfo([Self.setResultKey: data])
+        try track {
+            let data = try JSONEncoder().encode(payload)
+            session.transferUserInfo([Self.setResultKey: data])
+        }
     }
 
     /// 세션 종료 스냅샷. 세트별 전송이 하나라도 새면 이것으로 복구된다.
     public func sendSessionSnapshot(_ payload: SessionSnapshotPayload) throws {
-        let data = try JSONEncoder().encode(payload)
-        session.transferUserInfo([Self.sessionSnapshotKey: data])
+        try track {
+            let data = try JSONEncoder().encode(payload)
+            session.transferUserInfo([Self.sessionSnapshotKey: data])
+        }
+    }
+
+    /// 전송 성공·실패를 `lastSendError` 에 남기고, 실패는 로그로도 남긴다(리뷰 지적 ②).
+    /// 호출부의 `try?` 가 오류를 버려도 여기서는 사라지지 않는다.
+    private func track<T>(_ operation: () throws -> T) rethrows -> T {
+        do {
+            let value = try operation()
+            lastSendError = nil
+            return value
+        } catch {
+            lastSendError = error
+            Self.logger.error("동기화 전송 실패: \(String(describing: error), privacy: .public)")
+            throw error
+        }
     }
 
     // MARK: - 수신 처리
@@ -100,6 +145,24 @@ public final class WatchSyncService: NSObject {
         } catch {
             assertionFailure("동기화 수신 실패: \(error)")
         }
+    }
+
+    /// `activate()` 는 비동기라, 그 전에 호출된 `pushRoutines` 는 실기기에서 조용히 실패해 있을 수 있다.
+    /// 활성화가 끝난 시점에 최신 루틴을 다시 내려보내 재시도한다(리뷰 지적 ①).
+    /// 루틴은 폰 → 워치 방향뿐이라 워치 쪽에서는 재전송할 것이 없다.
+    private func handleActivationDidComplete(activationState: WCSessionActivationState, error: Error?) {
+        if let error {
+            lastSendError = error
+            Self.logger.error("WCSession 활성화 실패: \(String(describing: error), privacy: .public)")
+        }
+        guard activationState == .activated else {
+            Self.logger.notice("WCSession 활성화 미완료 (state=\(activationState.rawValue, privacy: .public))")
+            return
+        }
+        Self.logger.info("WCSession 활성화 완료")
+        #if os(iOS)
+        try? pushRoutines(in: ModelContext(container))
+        #endif
     }
 
     private func handleApplicationContext(routinesData: Data?) {
@@ -124,7 +187,11 @@ extension WatchSyncService: WCSessionDelegate {
         _ session: WCSession,
         activationDidCompleteWith activationState: WCSessionActivationState,
         error: Error?
-    ) {}
+    ) {
+        Task { @MainActor in
+            self.handleActivationDidComplete(activationState: activationState, error: error)
+        }
+    }
 
     #if os(iOS)
     public nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
