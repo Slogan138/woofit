@@ -6,7 +6,10 @@ import WoofitCore
 struct SessionDetailView: View {
     let session: WorkoutSession
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @State private var pendingExport: MarkdownExport?
+    @State private var isDeleteConfirmationPresented = false
 
     var body: some View {
         List {
@@ -35,6 +38,29 @@ struct SessionDetailView: View {
                     Label("마크다운", systemImage: "doc.on.doc")
                 }
             }
+            // 진행 중 세션은 먼저 중단해야 지울 수 있으므로 버튼 자체를 숨긴다(F-12, D7).
+            if session.isDeletable {
+                ToolbarItem(placement: .destructiveAction) {
+                    Button(role: .destructive) {
+                        isDeleteConfirmationPresented = true
+                    } label: {
+                        Label("삭제", systemImage: "trash")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "이 기록을 삭제하시겠습니까?",
+            isPresented: $isDeleteConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("삭제", role: .destructive) {
+                try? SessionDeletion.delete(session, in: modelContext)
+                dismiss()
+            }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("마크다운으로 옮기지 않았다면 이 운동 기록이 사라집니다. 되돌릴 수 없습니다.")
         }
         .sheet(item: $pendingExport) { export in
             MarkdownPreviewView(title: export.title, markdown: export.markdown)

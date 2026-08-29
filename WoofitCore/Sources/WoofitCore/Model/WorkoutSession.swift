@@ -130,6 +130,9 @@ public extension WorkoutSession {
 
     var isPaused: Bool { pausedAt != nil }
 
+    /// 진행 중인 세션은 지울 수 없다 — 먼저 `abandon()` 으로 중단해야 한다(F-12, D7).
+    var isDeletable: Bool { state != .inProgress }
+
     /// 일시정지한다. 진행 중이 아니거나 이미 일시정지 중이면 아무 일도 하지 않는다.
     func pause(at date: Date = Date()) {
         guard state == .inProgress, pausedAt == nil else { return }
