@@ -18,7 +18,7 @@ private func makeSetPayload(
     actualWeight: Double? = nil,
     actualReps: Int? = nil,
     restSeconds: Double? = nil,
-    recordedAt: Date
+    recordedAt: Date?
 ) -> SetResultPayload {
     SetResultPayload(
         sessionID: sessionID,
@@ -127,55 +127,104 @@ func missingSessionIsCreatedFromPayload() throws {
 
 // MARK: - 세션 종료 스냅샷
 
+/// 비교 대상은 항상 원본 세션이어야 한다. 예전엔 "세트별 병합 결과와 같다" 로 검증했는데,
+/// 둘 다 같은 `SetResultPayload.make` 를 거쳐 만들어진 스냅샷을 병합했을 뿐이라 스냅샷이
+/// 미수행 세트를 빠뜨려도 항상 같은(둘 다 틀린) 결과가 나와 버그를 잡지 못했다.
 @MainActor
-@Test("종료 스냅샷 병합 결과가 세트별 병합 결과와 같다")
-func snapshotMergeMatchesPerSetMerge() throws {
-    let sessionID = UUID(), exerciseID = UUID()
-    let firstSetID = UUID(), secondSetID = UUID()
-    let payloads = [
-        makeSetPayload(
-            sessionID: sessionID, exerciseID: exerciseID, setID: firstSetID,
-            result: .success, recordedAt: Date(timeIntervalSince1970: 1000)
-        ),
-        makeSetPayload(
-            sessionID: sessionID, exerciseID: exerciseID, setID: secondSetID,
-            result: .failure, actualReps: 3, recordedAt: Date(timeIntervalSince1970: 1010)
-        )
-    ]
+@Test("종료 스냅샷 병합 결과가 원본 세션과 같다")
+func snapshotMergeMatchesOriginalSession() throws {
+    let routine = makeRoutine(sets: 2)
+    let session = WorkoutSession.start(from: routine, at: Date(timeIntervalSince1970: 0))
+    let sets = session.sortedExercises[0].sortedSets
+    sets[0].markSuccess(at: Date(timeIntervalSince1970: 1000))
+    sets[1].markFailure(actualReps: 3, at: Date(timeIntervalSince1970: 1010))
+    session.finish(at: Date(timeIntervalSince1970: 1010))
 
-    let viaSetsContainer = try WoofitModelContainer.makeInMemoryContainer()
-    for payload in payloads {
-        try SyncMerger.merge(payload, into: viaSetsContainer.mainContext)
-    }
+    let sourceContainer = try WoofitModelContainer.makeInMemoryContainer()
+    sourceContainer.mainContext.insert(session)
+    let snapshot = SessionSnapshotPayload.make(for: session)
 
-    let viaSnapshotContainer = try WoofitModelContainer.makeInMemoryContainer()
-    let snapshot = SessionSnapshotPayload(
-        sessionID: sessionID,
-        routineID: nil,
-        routineName: "가슴",
-        category: "가슴",
-        startedAt: Date(timeIntervalSince1970: 0),
-        endedAt: Date(timeIntervalSince1970: 1010),
-        state: .completed,
-        sets: payloads
+    let destinationContainer = try WoofitModelContainer.makeInMemoryContainer()
+    try SyncMerger.merge(snapshot, into: destinationContainer.mainContext)
+
+    let merged = try #require(
+        try destinationContainer.mainContext.fetch(FetchDescriptor<WorkoutSession>()).first
     )
-    try SyncMerger.merge(snapshot, into: viaSnapshotContainer.mainContext)
+    #expect(merged.id == session.id)
+    #expect(merged.state == session.state)
+    #expect(merged.endedAt == session.endedAt)
 
-    let setsA = try #require(
-        try viaSetsContainer.mainContext.fetch(FetchDescriptor<WorkoutSession>()).first
-    ).allSets.sorted { $0.id.uuidString < $1.id.uuidString }
-    let setsB = try #require(
-        try viaSnapshotContainer.mainContext.fetch(FetchDescriptor<WorkoutSession>()).first
-    ).allSets.sorted { $0.id.uuidString < $1.id.uuidString }
-
-    #expect(setsA.count == setsB.count)
-    for (a, b) in zip(setsA, setsB) {
-        #expect(a.id == b.id)
-        #expect(a.result == b.result)
-        #expect(a.actualReps == b.actualReps)
-        #expect(a.actualWeight == b.actualWeight)
-        #expect(a.recordedAt == b.recordedAt)
+    let originalSets = session.allSets.sorted { $0.id.uuidString < $1.id.uuidString }
+    let mergedSets = merged.allSets.sorted { $0.id.uuidString < $1.id.uuidString }
+    #expect(originalSets.count == mergedSets.count)
+    for (original, mergedSet) in zip(originalSets, mergedSets) {
+        #expect(original.id == mergedSet.id)
+        #expect(original.result == mergedSet.result)
+        #expect(original.actualReps == mergedSet.actualReps)
+        #expect(original.actualWeight == mergedSet.actualWeight)
+        #expect(original.recordedAt == mergedSet.recordedAt)
     }
+}
+
+/// 회귀 테스트 — 종료 스냅샷이 미수행 세트를 빠뜨리던 버그(F-8).
+/// 워치에서 3세트 중 2개만 기록하고 중단한 세션을, 이 세션을 처음 보는 폰 컨테이너에
+/// 스냅샷으로 병합했을 때 원본과 같은 구조로 복원돼야 한다.
+@MainActor
+@Test("중단 세션의 종료 스냅샷이 미수행 세트를 포함해 원본과 같은 구조로 복원된다")
+func snapshotMergeRestoresAbandonedSessionIncludingPendingSets() throws {
+    let routine = makeRoutine(sets: 3)
+    let session = WorkoutSession.start(from: routine, at: Date(timeIntervalSince1970: 0))
+    let sets = session.sortedExercises[0].sortedSets
+    sets[0].markSuccess(at: Date(timeIntervalSince1970: 100))
+    sets[1].markFailure(actualReps: 3, at: Date(timeIntervalSince1970: 200))
+    // sets[2] 는 미수행인 채로 중단한다.
+    session.abandon(at: Date(timeIntervalSince1970: 300))
+
+    let watchContainer = try WoofitModelContainer.makeInMemoryContainer()
+    watchContainer.mainContext.insert(session)
+
+    let snapshot = SessionSnapshotPayload.make(for: session)
+    #expect(snapshot.sets.count == 3, "미수행 세트도 스냅샷에 담겨야 한다")
+
+    let phoneContainer = try WoofitModelContainer.makeInMemoryContainer()
+    try SyncMerger.merge(snapshot, into: phoneContainer.mainContext)
+
+    let merged = try #require(
+        try phoneContainer.mainContext.fetch(FetchDescriptor<WorkoutSession>()).first
+    )
+    #expect(merged.totalSetCount == session.totalSetCount)
+    #expect(merged.totalSetCount == 3)
+    #expect(merged.recordedSetCount == 2)
+
+    let mergedExport = SessionMarkdownExporter.export(merged)
+    #expect(mergedExport.contains("- 완료: 2/3 세트"))
+    #expect(mergedExport == SessionMarkdownExporter.export(session))
+}
+
+/// `recordedAt` 옵셔널화의 부작용 확인 — 스냅샷의 미수행 세트 payload(`recordedAt == nil`)가
+/// 순서에 상관없이 도착해도 이미 기록된 세트를 미수행으로 되돌리면 안 된다.
+@MainActor
+@Test("recordedAt 없는 payload 는 이미 기록된 세트를 덮어쓰지 않는다")
+func pendingPayloadNeverOverwritesRecordedSet() throws {
+    let sessionID = UUID(), exerciseID = UUID(), setID = UUID()
+    let recorded = makeSetPayload(
+        sessionID: sessionID, exerciseID: exerciseID, setID: setID,
+        result: .success, recordedAt: Date(timeIntervalSince1970: 1000)
+    )
+    let pending = makeSetPayload(
+        sessionID: sessionID, exerciseID: exerciseID, setID: setID,
+        result: .pending, recordedAt: nil
+    )
+
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    try SyncMerger.merge(recorded, into: context)
+    try SyncMerger.merge(pending, into: context)
+
+    let set = try #require(try context.fetch(FetchDescriptor<WorkoutSession>()).first?.allSets.first)
+    #expect(set.result == .success)
+    #expect(set.recordedAt == recorded.recordedAt)
 }
 
 // MARK: - 루틴 전송

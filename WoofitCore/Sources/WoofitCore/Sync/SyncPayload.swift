@@ -118,8 +118,9 @@ public struct SetResultPayload: Codable, Hashable, Sendable {
     public var actualWeight: Double?
     public var actualReps: Int?
     public var restSeconds: Double?
-    /// 병합 우선순위 기준(PRD §8). 나중 값이 이긴다.
-    public var recordedAt: Date
+    /// 병합 우선순위 기준(PRD §8). 나중 값이 이긴다. 아직 수행하지 않은 세트는 `nil` —
+    /// 이 값이 없는 payload 는 기존 기록을 절대 덮어쓰지 않는다(`SyncMerger.apply`).
+    public var recordedAt: Date?
 
     public init(
         sessionID: UUID,
@@ -138,7 +139,7 @@ public struct SetResultPayload: Codable, Hashable, Sendable {
         actualWeight: Double?,
         actualReps: Int?,
         restSeconds: Double?,
-        recordedAt: Date
+        recordedAt: Date?
     ) {
         self.sessionID = sessionID
         self.routineID = routineID
@@ -162,11 +163,17 @@ public struct SetResultPayload: Codable, Hashable, Sendable {
 
 public extension SetResultPayload {
     /// 세트 하나를 전송용 payload 로 바꾼다. 아직 기록되지 않은 세트(`recordedAt` 없음)는
-    /// 보낼 이유가 없으므로 `nil`.
+    /// 세트별 전송에서 보낼 이유가 없으므로 `nil`. 세션 전체를 복원해야 하는 스냅샷은
+    /// `makeSnapshotEntry(for:)` 를 쓴다.
     static func make(for set: SessionSet) -> SetResultPayload? {
-        guard let exercise = set.exercise, let session = exercise.session, let recordedAt = set.recordedAt else {
-            return nil
-        }
+        guard set.recordedAt != nil else { return nil }
+        return makeSnapshotEntry(for: set)
+    }
+
+    /// 스냅샷용. 미수행 세트(`result == .pending`, `recordedAt == nil`)도 그대로 담아
+    /// 세션 전체 구조(개수·목표값)를 복원할 수 있게 한다.
+    static func makeSnapshotEntry(for set: SessionSet) -> SetResultPayload? {
+        guard let exercise = set.exercise, let session = exercise.session else { return nil }
         return SetResultPayload(
             sessionID: session.id,
             routineID: session.routineID,
@@ -184,16 +191,16 @@ public extension SetResultPayload {
             actualWeight: set.actualWeight,
             actualReps: set.actualReps,
             restSeconds: set.restSeconds,
-            recordedAt: recordedAt
+            recordedAt: set.recordedAt
         )
     }
 }
 
 /// 워치 → 폰. 세션 종료 시점의 전체 스냅샷(F-8).
 ///
-/// 세트별 전송이 하나라도 새면 여기서 복구된다 — 최종 정합성 보루다.
-/// 그래서 세트별 병합과 **같은 결과**를 내야 하고, 이를 보장하려고 `SetResultPayload`
-/// 를 그대로 담아 재사용한다(`SyncMerger` 가 내부적으로 같은 함수를 호출한다).
+/// 세트별 전송이 하나라도 새면 여기서 복구된다 — 최종 정합성 보루다. 그래서 미수행
+/// 세트까지 포함해 세션 전체 구조를 복원해야 한다(`makeSnapshotEntry(for:)`). 세트별
+/// 전송의 `make(for:)` 와 달리 `recordedAt` 이 없는 세트도 걸러내지 않는다.
 public struct SessionSnapshotPayload: Codable, Hashable, Sendable {
     public var sessionID: UUID
     public var routineID: UUID?
@@ -235,7 +242,7 @@ public extension SessionSnapshotPayload {
             startedAt: session.startedAt,
             endedAt: session.endedAt,
             state: session.state,
-            sets: session.allSets.compactMap(SetResultPayload.make(for:))
+            sets: session.allSets.compactMap(SetResultPayload.makeSnapshotEntry(for:))
         )
     }
 }
