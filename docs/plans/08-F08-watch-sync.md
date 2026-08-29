@@ -100,6 +100,13 @@ public enum SyncMerger {
 **세션 종료 스냅샷이 최종 보루다.** 세트별 전송이 하나라도 유실되면 여기서 복구된다.
 따라서 종료 스냅샷 병합은 세트별 병합과 **같은 결과**를 내야 한다.
 
+**`activate()` 완료를 기다리지 않고 보낸 첫 `pushRoutines` 는 유실될 수 있다.**
+`WCSession.activate()` 는 비동기라, 앱 시작 직후 호출한 `pushRoutines` 가 활성화보다
+먼저 실행되면 조용히 실패한다. `activationDidCompleteWith` 에서 `activationState == .activated`
+이면(iOS 쪽만, 루틴은 폰 → 워치 방향이라) 최신 루틴을 한 번 더 내려보내 재시도한다.
+전송 결과는 `lastSendError` 에 남고 실패는 `os.Logger`(`WatchSync` 카테고리)로도 남아,
+실기기에서 `try?` 로 버려지는 오류를 진단할 수 있다.
+
 ## 테스트 계획
 
 | 테스트 | 검증하는 것 |
