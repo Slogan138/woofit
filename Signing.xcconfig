@@ -1,0 +1,5 @@
+// 서명 팀 ID 를 저장소 밖에 두기 위한 진입점.
+// 실기기 빌드가 필요하면 같은 위치에 Signing.local.xcconfig 를 만들고
+// DEVELOPMENT_TEAM = <팀 ID> 한 줄을 넣는다. 그 파일은 .gitignore 로 제외된다.
+// #include? 는 파일이 없어도 오류 없이 넘어가므로 시뮬레이터 빌드는 그대로 동작한다.
+#include? "Signing.local.xcconfig"

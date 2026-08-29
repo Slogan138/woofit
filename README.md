@@ -21,6 +21,16 @@
 | watchOS 배포 타겟 | 26.0 |
 | Swift | 6.0 (패키지 tools-version 6.2) |
 
+### 실기기 빌드
+
+서명 팀 ID 는 저장소에 넣지 않는다. 실기기에 설치하려면 저장소 루트에
+`Signing.local.xcconfig` 를 만들고 자기 팀 ID 를 넣는다([Signing.xcconfig](Signing.xcconfig) 참고).
+시뮬레이터 빌드에는 필요 없다.
+
+```sh
+echo 'DEVELOPMENT_TEAM = XXXXXXXXXX' > Signing.local.xcconfig
+```
+
 ## 구조
 
 ```
