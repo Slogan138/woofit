@@ -49,12 +49,18 @@
 이 화면들은 F-08(폰↔워치 동기화)이 없는 상태에서 만들어졌다. 워치는 자기 로컬 저장소만
 읽고 쓸 뿐, 폰의 루틴을 받아올 방법이 아직 없다 — `WatchRootView` 는 여전히 "폰에서 루틴을
 만드세요"로 안내한다. 그래서 실기기 검증 대신, 워치 로컬 저장소에 직접 씨드 데이터를 넣어
-"시작 → 성공 → 실패(Digital Crown 기본값 + 무게 스테퍼) → 성공 → 완료" 전 과정을
-워치 시뮬레이터에서 확인했다. `WCSession` 을 통한 실제 폰 ↔ 워치 왕복은 F-08의 몫이다.
+"시작 → 성공 → 실패(Digital Crown 기본값 + 무게 스테퍼) → 되돌리기 → 성공 → 완료" 전
+과정을 워치 시뮬레이터에서 확인했다. `WCSession` 을 통한 실제 폰 ↔ 워치 왕복은 F-08의 몫이다.
+
+**되돌리기는 "주의점"대로 넣었다.** 워치는 실수 탭이 잦다는 이유로 이 문서가 이미
+되돌리기 경로를 필수로 요구하고 있어, 세트 목록 전체를 못 보여주는 대신
+`SessionRunner.lastRecordedSet`(가장 최근에 기록한 세트 하나)을 추적해
+"N세트 되돌리기" 버튼 하나로 노출한다. 되돌리면 그 세트로 초점도 다시 옮겨간다 —
+안 그러면 마지막 세트를 되돌렸을 때 화면이 "완료" 상태에 그대로 머무른다.
 
 **M2 범위에서 의도적으로 뺀 것.** 워치 화면은 성공/실패 두 버튼과 직전 기록 한 줄로
 압축한다(PRD 화면표의 W3 자체가 P4보다 좁게 정의되어 있다). 그래서 이번 pass 에는
-되돌리기(undo)·일시정지·앱 재시작 시 이어받기를 넣지 않았다 — 대신 진행 중 세션을
+일시정지와 앱 재시작 시 이어받기는 넣지 않았다 — 대신 진행 중 세션을
 `navigationBarBackButtonHidden` 으로 감싸 "중단" 버튼으로만 나가게 해서 고아 세션이
 생기지 않게 막았다. 필요해지면 별도로 채워 넣는다.
 
@@ -82,6 +88,7 @@ public final class SessionRunner: Identifiable {
     public private(set) var session: WorkoutSession
     public var focusedSet: SessionSet?
     public private(set) var lastRecords: [String: LastRecord]   // F-09
+    public private(set) var lastRecordedSet: SessionSet?        // 워치 되돌리기용
     public var isPaused: Bool { session.isPaused }              // WorkoutSession.pausedAt 를 그대로 반영
 
     public func recordSuccess(for set: SessionSet?, at: Date)

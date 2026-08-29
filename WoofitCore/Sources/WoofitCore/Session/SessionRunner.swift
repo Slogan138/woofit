@@ -9,6 +9,9 @@ public final class SessionRunner: Identifiable, Hashable {
     public private(set) var session: WorkoutSession
     public var focusedSet: SessionSet?
     public private(set) var lastRecords: [String: LastRecord]
+    /// 가장 최근에 기록한 세트. 워치처럼 세트 목록 전체를 보여줄 수 없는 화면에서
+    /// "직전 기록 되돌리기" 한 곳만 노출하는 데 쓴다 — 실수 탭이 잦기 때문(F-3).
+    public private(set) var lastRecordedSet: SessionSet?
 
     public init(session: WorkoutSession, lastRecords: [String: LastRecord] = [:]) {
         self.session = session
@@ -32,6 +35,7 @@ public final class SessionRunner: Identifiable, Hashable {
     public func recordSuccess(for set: SessionSet? = nil, at date: Date = Date()) {
         guard let target = set ?? focusedSet else { return }
         target.markSuccess(at: date)
+        lastRecordedSet = target
         advanceFocus()
     }
 
@@ -44,18 +48,24 @@ public final class SessionRunner: Identifiable, Hashable {
     ) {
         guard let target = set ?? focusedSet else { return }
         target.markFailure(actualReps: actualReps, actualWeight: actualWeight, at: date)
+        lastRecordedSet = target
         advanceFocus()
     }
 
     public func skip(_ set: SessionSet? = nil, at date: Date = Date()) {
         guard let target = set ?? focusedSet else { return }
         target.markSkipped(at: date)
+        lastRecordedSet = target
         advanceFocus()
     }
 
     /// 기록한 세트를 되돌린다. 휴식 시간은 남는다 — 실제로 쉰 것은 사실이기 때문이다.
+    /// 되돌린 세트로 초점을 다시 옮긴다 — 그러지 않으면 화면에 하나만 보여주는
+    /// 워치에서는 되돌리고 나서 아무것도 안 보이는 상태가 된다.
     public func undo(_ set: SessionSet) {
         set.clearResult()
+        if lastRecordedSet?.id == set.id { lastRecordedSet = nil }
+        focusedSet = session.nextPendingSet
     }
 
     public func pause(at date: Date = Date()) {

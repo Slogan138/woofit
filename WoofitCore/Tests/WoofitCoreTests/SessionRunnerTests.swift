@@ -114,6 +114,70 @@ func undoRestoresPendingButKeepsRest() throws {
     #expect(target.restSeconds == 90)
 }
 
+@MainActor
+@Test("되돌리면 그 세트로 초점이 다시 옮겨간다")
+func undoRefocusesTheUndoneSet() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let first = try #require(runner.focusedSet)
+    runner.recordSuccess()
+    #expect(runner.focusedSet?.id == session.allSets[1].id)
+
+    runner.undo(first)
+
+    #expect(runner.focusedSet?.id == first.id)
+}
+
+@MainActor
+@Test("마지막 세트를 되돌리면 화면이 완료 상태에 머무르지 않는다")
+func undoingLastSetRefocusesEvenAfterCompletion() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let target = try #require(runner.focusedSet)
+    runner.recordSuccess()
+    #expect(runner.focusedSet == nil)
+
+    runner.undo(target)
+
+    #expect(runner.focusedSet?.id == target.id)
+}
+
+@MainActor
+@Test("가장 최근에 기록한 세트를 워치 화면에서 되돌릴 수 있다")
+func lastRecordedSetTracksMostRecentRecordAndClearsOnUndo() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    #expect(runner.lastRecordedSet == nil)
+
+    let first = try #require(runner.focusedSet)
+    runner.recordSuccess()
+    #expect(runner.lastRecordedSet?.id == first.id)
+
+    runner.undo(first)
+    #expect(runner.lastRecordedSet == nil)
+}
+
 // MARK: - 일시정지·재개·중단
 
 @MainActor

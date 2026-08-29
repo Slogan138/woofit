@@ -50,6 +50,15 @@ struct WatchSetView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+
+                // 워치는 세트 목록을 전부 보여줄 수 없어 방금 기록한 세트 하나만 되돌릴 수 있게 한다.
+                // 워치는 실수 탭이 잦아 되돌리기 경로가 반드시 있어야 한다(F-3).
+                if let last = runner.lastRecordedSet {
+                    Button("\(last.order + 1)세트 되돌리기") { runner.undo(last) }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.blue)
+                        .font(.caption2)
+                }
             }
             .padding(.horizontal, 2)
         }
