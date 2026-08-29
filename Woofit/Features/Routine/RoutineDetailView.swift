@@ -8,6 +8,8 @@ struct RoutineDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SessionCoordinator.self) private var coordinator
 
+    @State private var isEditing = false
+
     var body: some View {
         List {
             Section {
@@ -41,6 +43,11 @@ struct RoutineDetailView: View {
         }
         .navigationTitle(routine.resolvedTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("편집") { isEditing = true }
+            }
+        }
         .overlay {
             if routine.sortedExercises.isEmpty {
                 ContentUnavailableView(
@@ -48,6 +55,11 @@ struct RoutineDetailView: View {
                     systemImage: "list.bullet",
                     description: Text("루틴을 편집하거나 마크다운을 가져와 종목을 추가하세요.")
                 )
+            }
+        }
+        .sheet(isPresented: $isEditing) {
+            NavigationStack {
+                RoutineEditorView(routine: routine)
             }
         }
     }
