@@ -14,7 +14,7 @@ public enum SessionMarkdownExporter {
         case .horizontalSets:
             lines.append(horizontalTable(for: session, style: style))
         case .verticalSets:
-            lines.append(verticalTable(for: session, style: style))
+            lines.append(verticalTable(for: session))
         }
         return lines.joined(separator: "\n")
     }
@@ -92,7 +92,8 @@ public enum SessionMarkdownExporter {
 
     // MARK: - 형식 B · 세트 세로
 
-    private static func verticalTable(for session: WorkoutSession, style: MarkdownStyle) -> String {
+    /// 형식 B는 §6.2 예시대로 결과를 항상 텍스트로 적는다 — `resultSymbol` 과 무관하다.
+    private static func verticalTable(for session: WorkoutSession) -> String {
         let headers = ["종목", "세트", "목표", "결과", "휴식"]
         let rows = session.sortedExercises.flatMap { exercise in
             exercise.sortedSets.map { set -> [String] in
