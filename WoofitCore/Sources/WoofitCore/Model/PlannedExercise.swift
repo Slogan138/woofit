@@ -61,6 +61,18 @@ public extension PlannedExercise {
         routine?.touch()
     }
 
+    /// 세트를 컨텍스트와 관계 배열 양쪽에서 지운다. 배열에서만 빼면 SwiftData
+    /// 저장소에는 고아로 남는다. `remove(atOffsets:)` 는 SwiftUI 의존이라 여기서는
+    /// 직접 걸러낸다.
+    func removeSets(at offsets: IndexSet) {
+        let ordered = sortedSets
+        for index in offsets {
+            modelContext?.delete(ordered[index])
+        }
+        sets = ordered.enumerated().filter { !offsets.contains($0.offset) }.map(\.element)
+        reindexSets()
+    }
+
     /// 세트 값이 전부 같으면 그 값을 돌려준다. 피라미드 세트면 `nil`.
     var uniformTarget: (weight: Double, reps: Int)? {
         let all = sortedSets

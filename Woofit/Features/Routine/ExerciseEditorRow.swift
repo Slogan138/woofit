@@ -100,10 +100,7 @@ struct ExerciseEditorRow: View {
     }
 
     private func deleteSets(at offsets: IndexSet) {
-        var sets = exercise.sortedSets
-        sets.remove(atOffsets: offsets)
-        exercise.sets = sets
-        exercise.reindexSets()
+        exercise.removeSets(at: offsets)
     }
 
     private func addSets() {
