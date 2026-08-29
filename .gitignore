@@ -22,3 +22,6 @@ Package.resolved.bak
 
 # macOS
 .DS_Store
+
+# 서명 팀 ID — 저장소에 올리지 않는다 (Signing.xcconfig 참고)
+Signing.local.xcconfig

@@ -39,6 +39,7 @@
 /* Begin PBXFileReference section */
 		AA0000000000000000000008 /* Woofit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Woofit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000017 /* WoofitWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "WoofitWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000000000000000000022 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +80,7 @@
 			children = (
 				AA0000000000000000000010 /* Woofit */,
 				AA000000000000000000001E /* WoofitWatch Watch App */,
+				AA0000000000000000000022 /* Signing.xcconfig */,
 				AA0000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -230,6 +232,7 @@
 /* Begin XCBuildConfiguration section */
 		AA0000000000000000000005 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA0000000000000000000022 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -264,6 +267,7 @@
 		};
 		AA0000000000000000000006 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA0000000000000000000022 /* Signing.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
