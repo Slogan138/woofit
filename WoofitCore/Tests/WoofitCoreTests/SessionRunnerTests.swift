@@ -1,0 +1,235 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import WoofitCore
+
+private func makeRoutine(sets: Int = 2) -> Routine {
+    let routine = Routine(name: "가슴")
+    let bench = routine.appendExercise(named: "벤치프레스")
+    bench.appendSets(count: sets, weight: 80, reps: 5)
+    return routine
+}
+
+// MARK: - 초점 진행
+
+@MainActor
+@Test("성공을 기록하면 다음 세트로 초점이 옮겨간다")
+func recordingSuccessAdvancesFocus() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let first = try #require(runner.focusedSet)
+    runner.recordSuccess()
+
+    #expect(first.result == .success)
+    #expect(runner.focusedSet?.id == session.allSets[1].id)
+}
+
+@MainActor
+@Test("마지막 세트를 기록하면 종목이 완료되고 초점을 잃는다")
+func recordingLastSetCompletesExercise() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    runner.recordSuccess()
+
+    #expect(session.currentExercise == nil)
+    #expect(runner.focusedSet == nil)
+}
+
+// MARK: - D1 불변식
+
+@MainActor
+@Test("실패 기록은 실제 횟수를 함께 남긴다")
+func recordFailureCarriesActualReps() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let target = try #require(runner.focusedSet)
+    runner.recordFailure(actualReps: 3, actualWeight: 70)
+
+    #expect(target.result == .failure)
+    #expect(target.actualReps == 3)
+    #expect(target.performedWeight == 70)
+}
+
+@MainActor
+@Test("실패 입력을 취소하면 세트가 pending 으로 남는다")
+func cancellingFailureInputLeavesSetPending() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    // 실패 시트를 열었다가 recordFailure 를 호출하지 않고 닫은 경우를 흉내낸다.
+    let runner = SessionRunner(session: session)
+    let target = try #require(runner.focusedSet)
+
+    #expect(target.result == .pending)
+    #expect(runner.focusedSet?.id == target.id)
+}
+
+// MARK: - 되돌리기
+
+@MainActor
+@Test("기록을 되돌리면 다시 pending 이 되지만 측정된 휴식 시간은 남는다")
+func undoRestoresPendingButKeepsRest() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let target = try #require(runner.focusedSet)
+    target.restSeconds = 90
+    runner.recordSuccess()
+
+    runner.undo(target)
+
+    #expect(target.result == .pending)
+    #expect(target.restSeconds == 90)
+}
+
+// MARK: - 일시정지·재개·중단
+
+@MainActor
+@Test("일시정지하면 pausedAt 이 남고, 재개하면 지워진다")
+func pauseAndResumeRoundTrip() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    let pausedAt = Date()
+    runner.pause(at: pausedAt)
+
+    #expect(runner.isPaused)
+    #expect(session.pausedAt == pausedAt)
+    #expect(session.state == .inProgress)
+
+    runner.resume()
+
+    #expect(runner.isPaused == false)
+    #expect(session.pausedAt == nil)
+}
+
+@MainActor
+@Test("중단한 세션은 abandoned 로 남고 일시정지 표시는 지워진다")
+func abandonClearsAndRecordsAsAbandoned() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+    runner.pause()
+    runner.abandon()
+
+    #expect(session.state == .abandoned)
+    #expect(session.pausedAt == nil)
+}
+
+// MARK: - 세션 복원
+
+@MainActor
+@Test("앱 재시작 시 진행 중 세션을 찾아 이어받는다")
+func restoreFindsInProgressSession() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 2)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+    session.allSets[0].markSuccess()
+
+    let restored = try #require(try SessionRestore.fetchInProgress(in: context))
+    #expect(restored.id == session.id)
+}
+
+@MainActor
+@Test("일시정지 중이어도 복원 대상에 포함된다")
+func restoreFindsPausedSession() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+    session.pause()
+
+    let restored = try SessionRestore.fetchInProgress(in: context)
+    #expect(restored?.id == session.id)
+}
+
+@MainActor
+@Test("진행 중 세션이 없으면 복원 결과가 nil 이다")
+func restoreIsNilWhenNothingInProgress() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+    session.allSets[0].markSuccess()
+    session.finish()
+
+    let restored = try SessionRestore.fetchInProgress(in: context)
+    #expect(restored == nil)
+}
+
+// MARK: - 직전 기록 연동 (F-9)
+
+@MainActor
+@Test("초점을 둔 세트의 종목으로 직전 기록을 찾는다")
+func focusedLastRecordLooksUpByExercise() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = makeRoutine(sets: 1)
+    context.insert(routine)
+    let past = WorkoutSession.start(from: routine, at: Date().addingTimeInterval(-86_400))
+    context.insert(past)
+    past.allSets[0].markSuccess()
+    past.finish()
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+    let lastRecords = try LastRecordLookup.fetchAll(for: session, in: context)
+
+    let runner = SessionRunner(session: session, lastRecords: lastRecords)
+    #expect(runner.focusedLastRecord?.succeededAllSets == true)
+}

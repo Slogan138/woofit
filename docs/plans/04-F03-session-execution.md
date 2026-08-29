@@ -33,14 +33,14 @@
 ## 작업 단위
 
 **M1 (폰)**
-- [ ] 1. `SessionRunner` — `@Observable` 실행 상태 (현재 종목/세트, 진행률)
-- [ ] 2. `SessionRunnerView` — 현재 세트 강조, 진행률 (P4)
-- [ ] 3. 성공 버튼 — 1탭
-- [ ] 4. 실패 시트 — 횟수 스테퍼(필수) + 무게 조정
-- [ ] 5. 기록 수정 — 지난 세트 탭해서 되돌리기
-- [ ] 6. 일시정지·재개·중단
-- [ ] 7. 세션 복원 — 앱 종료 후 재실행 시 진행 중 세션 이어받기
-- [ ] 8. 테스트
+- [x] 1. `SessionRunner` — `@Observable` 실행 상태 (현재 종목/세트, 진행률)
+- [x] 2. `SessionRunnerView` — 현재 세트 강조, 진행률 (P4)
+- [x] 3. 성공 버튼 — 1탭
+- [x] 4. 실패 시트 — 횟수 스테퍼(필수) + 무게 조정
+- [x] 5. 기록 수정 — 지난 세트 탭해서 되돌리기
+- [x] 6. 일시정지·재개·중단 — `WorkoutSession.pausedAt` 에 저장하므로 앱을 껐다 켜도 유지된다
+- [x] 7. 세션 복원 — `SessionRestore.fetchInProgress` 로 `stateRaw == inProgress` 세션을 찾아 앱 시작 시 `SessionRunnerView` 로 바로 진입한다(`SessionCoordinator`)
+- [x] 8. 테스트
 
 **M2 (워치)**
 - [ ] 9. `WatchSetView` — 성공/실패 두 버튼 (W3)
@@ -55,7 +55,8 @@
 | `WoofitCore/Tests/WoofitCoreTests/SessionRunnerTests.swift` | 테스트 |
 | `Woofit/Features/Session/SessionRunnerView.swift` | P4 |
 | `Woofit/Features/Session/FailureInputSheet.swift` | 실패 횟수 입력 |
-| `WoofitWatch Watch App/Features/WatchSetView.swift` | W3 |
+| `Woofit/Features/Session/SessionCoordinator.swift` | 루틴 상세의 "시작"과 앱 시작 시 복원, 두 진입점을 `RootView` 의 `fullScreenCover` 로 모으는 화면 상태 |
+| `WoofitWatch Watch App/Features/WatchSetView.swift` | W3 (M2, 아직 없음) |
 
 ## 설계 메모
 
@@ -64,24 +65,38 @@
 
 ```swift
 @Observable
-public final class SessionRunner {
+public final class SessionRunner: Identifiable {
     public private(set) var session: WorkoutSession
     public var focusedSet: SessionSet?
-    public var lastRecords: [String: LastRecord]   // F-09
-    public var isPaused: Bool
+    public private(set) var lastRecords: [String: LastRecord]   // F-09
+    public var isPaused: Bool { session.isPaused }              // WorkoutSession.pausedAt 를 그대로 반영
 
-    public func recordSuccess()
-    public func recordFailure(reps: Int, weight: Double?)
-    public func skip()
+    public func recordSuccess(for set: SessionSet?, at: Date)
+    public func recordFailure(for set: SessionSet?, actualReps: Int, actualWeight: Double?, at: Date)
+    public func skip(_ set: SessionSet?, at: Date)
+    public func undo(_ set: SessionSet)
     public func focus(on set: SessionSet)
+    public func pause(at: Date)
+    public func resume()
+    public func finish(at: Date)
+    public func abandon(at: Date)
 }
 ```
 
 **실패 입력을 취소할 수 없게 만든다.** 시트를 내려도 세트가 `pending` 으로 남고,
 결과가 기록되지 않는다. 실패로 기록되면서 횟수만 비는 경로를 만들지 않는다 — D1 위반.
+`FailureInputSheet` 는 "기록" 버튼을 눌러야만 `onRecord` 콜백을 호출하므로, 취소·스와이프 dismiss 모두 안전하다.
 
-**세션 복원**은 `stateRaw == inProgress` 인 세션을 앱 시작 시 조회한다.
-휴식 측정 중이었다면 `restStartedAt` 으로 타이머를 되살린다(F-05).
+**일시정지는 `WorkoutSession.pausedAt: Date?` 에 저장한다.** `SessionRunner.isPaused` 라는
+휘발성 플래그로만 두면 앱을 강제 종료했다가 다시 열었을 때 항상 "재개됨"으로 보인다.
+`pausedAt` 이 있을 때만 일시정지 중이고, `stateRaw` 는 여전히 `inProgress` 라서 복원 대상에도 그대로 걸린다.
+`SessionRunnerView` 는 `.disabled(runner.isPaused)` 로 기록 버튼 자체를 막는다 — 오버레이는 화면만
+가릴 뿐 탭(특히 VoiceOver 같은 접근성 조작)까지 막지는 않기 때문이다.
+
+**세션 복원**은 `SessionRestore.fetchInProgress` 가 `stateRaw == inProgress` 인 세션을 앱 시작 시 조회한다.
+`SessionCoordinator`(앱 타겟)가 루틴 상세의 "시작" 버튼과 이 복원 조회, 두 진입점을 모아
+`RootView` 의 `fullScreenCover` 로 `SessionRunnerView` 를 띄운다.
+휴식 측정 중이었다면 `restStartedAt` 으로 타이머를 되살린다(F-05) — 이 부분은 F-05 화면 통합에서 마저 다룬다.
 
 ## 테스트 계획
 

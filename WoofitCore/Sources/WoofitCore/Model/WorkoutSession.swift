@@ -15,6 +15,8 @@ public final class WorkoutSession {
     public var startedAt: Date = Date()
     public var endedAt: Date?
     public var stateRaw: String = SessionState.inProgress.rawValue
+    /// 일시정지 시작 시각. 일시정지 중일 때만 값이 있다. 세션 복원에 쓴다(F-3).
+    public var pausedAt: Date?
 
     @Relationship(deleteRule: .cascade, inverse: \SessionExercise.session)
     public var exercises: [SessionExercise]? = []
@@ -122,6 +124,19 @@ public extension WorkoutSession {
         allSets.first { $0.restStartedAt != nil }
     }
 
+    var isPaused: Bool { pausedAt != nil }
+
+    /// 일시정지한다. 진행 중이 아니거나 이미 일시정지 중이면 아무 일도 하지 않는다.
+    func pause(at date: Date = Date()) {
+        guard state == .inProgress, pausedAt == nil else { return }
+        pausedAt = date
+    }
+
+    /// 재개한다.
+    func resume() {
+        pausedAt = nil
+    }
+
     /// 측정하지 않은 세트를 뺀 평균 휴식 시간.
     var averageRestSeconds: Double? {
         let values = allSets.compactMap(\.restSeconds)
@@ -132,6 +147,7 @@ public extension WorkoutSession {
     /// 세션을 끝낸다. 남은 `pending` 세트가 있으면 중단으로 기록한다.
     func finish(at date: Date = Date()) {
         restingSet?.stopRest(at: date)
+        pausedAt = nil
         endedAt = date
         state = isFullyRecorded ? .completed : .abandoned
     }
@@ -139,6 +155,7 @@ public extension WorkoutSession {
     /// 사용자가 명시적으로 그만둔 경우.
     func abandon(at date: Date = Date()) {
         restingSet?.stopRest(at: date)
+        pausedAt = nil
         endedAt = date
         state = .abandoned
     }

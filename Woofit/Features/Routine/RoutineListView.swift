@@ -107,5 +107,6 @@ private struct RoutineRow: View {
 
 #Preview {
     RoutineListView()
+        .environment(SessionCoordinator())
         .modelContainer(try! WoofitModelContainer.makeInMemoryContainer())
 }
