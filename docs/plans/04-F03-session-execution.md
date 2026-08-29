@@ -21,6 +21,10 @@
 - ✅ 진행 상태 프로퍼티 (`currentExercise`, `nextPendingSet`, `recordedSetCount`)
 - ✅ `LastRecordLookup` — 직전 기록 조회. **여기서 직접 호출한다**
 
+**03-F02 의 세션 진입 버튼도 여기서 만든다.** `RoutineListView`/`RoutineDetailView` 에
+`WorkoutSession.start(from:)` 을 호출해 `SessionRunnerView` 로 넘어가는 버튼이 아직 없다 —
+목적지 화면(`SessionRunnerView`)이 이 계획 소관이라 F-02 에서는 만들지 않았다.
+
 **07-F09 를 기다리지 않는다.** 조회 로직은 이미 완료돼 있어 이 작업에서 바로 쓴다.
 07-F09 가 다루는 것은 편집기·워치 등 **나머지 통합 지점**이라 이 문서보다 뒤에 온다.
 

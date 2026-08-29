@@ -12,19 +12,30 @@ struct WatchRootView: View {
         routines.first { $0.isScheduled(on: today) }
     }
 
+    /// 오늘 루틴을 뺀 나머지는 "최근 사용한 루틴"(PRD F-2) 이다.
+    /// `routines` 가 이미 `updatedAt` 내림차순이므로 그대로 쓴다.
+    private var otherRoutines: [Routine] {
+        routines.filter { $0.id != todaysRoutine?.id }
+    }
+
     var body: some View {
         NavigationStack {
             List {
                 if let todaysRoutine {
                     Section("오늘 · \(today.shortName)") {
-                        RoutineCard(routine: todaysRoutine)
+                        NavigationLink(value: todaysRoutine) {
+                            RoutineCard(routine: todaysRoutine)
+                        }
                     }
                 }
                 Section(todaysRoutine == nil ? "루틴" : "다른 루틴") {
-                    ForEach(routines.filter { $0.id != todaysRoutine?.id }) { routine in
-                        Text(routine.resolvedTitle)
+                    ForEach(otherRoutines) { routine in
+                        NavigationLink(routine.resolvedTitle, value: routine)
                     }
                 }
+            }
+            .navigationDestination(for: Routine.self) { routine in
+                WatchRoutinePreviewView(routine: routine)
             }
             .navigationTitle("Woofit")
             .overlay {
