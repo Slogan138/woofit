@@ -163,4 +163,11 @@ public extension WorkoutSession {
         endedAt = date
         state = .abandoned
     }
+
+    /// 완료 처리를 되돌린다. 마지막 세트를 자동 완료 후에 되돌리면 다시 진행 중으로
+    /// 돌아가야 세션 복원 대상에 다시 잡히고 소요 시간이 그 시점에 멈춰 있지 않는다(F-4).
+    func reopen() {
+        endedAt = nil
+        state = .inProgress
+    }
 }

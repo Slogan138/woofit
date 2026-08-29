@@ -8,11 +8,20 @@ struct SessionRunnerView: View {
 
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
+    @State private var isShowingExercisePicker = false
+    @State private var pendingExport: MarkdownExport?
+
+    private var isShowingFullScreenOverlay: Bool {
+        if runner.isPaused { return true }
+        if case .recording = runner.phase { return false }
+        return true
+    }
 
     var body: some View {
         List {
             Section {
                 ProgressRow(runner: runner)
+                Button("다른 종목으로 이동") { isShowingExercisePicker = true }
             }
 
             ForEach(runner.session.sortedExercises) { exercise in
@@ -40,9 +49,9 @@ struct SessionRunnerView: View {
                 }
             }
         }
-        // 일시정지 중에는 오버레이가 화면만 가릴 뿐 탭 자체는 막지 않으므로,
+        // 일시정지·전환·완료 오버레이는 화면만 가릴 뿐 탭 자체는 막지 않으므로,
         // VoiceOver 등 접근성 조작으로 뒤에서 기록되는 걸 막기 위해 직접 비활성화한다.
-        .disabled(runner.isPaused)
+        .disabled(isShowingFullScreenOverlay)
         .navigationTitle(runner.session.routineName)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden()
@@ -53,12 +62,9 @@ struct SessionRunnerView: View {
             ToolbarItem(placement: .primaryAction) {
                 if runner.isPaused {
                     Button("재개") { runner.resume() }
-                } else if runner.session.isFullyRecorded {
-                    Button("완료") {
-                        runner.finish()
-                        onEnd()
-                    }
-                } else {
+                } else if runner.phase != .finished {
+                    // 완료되면 전환 대신 SessionCompleteView 가 자동으로 뜨므로
+                    // 별도 완료 버튼을 두지 않는다(F-4).
                     Button("일시정지") { runner.pause() }
                 }
             }
@@ -66,12 +72,54 @@ struct SessionRunnerView: View {
         .overlay {
             if runner.isPaused {
                 PausedOverlay(onResume: { runner.resume() })
+            } else if case .transition(let from, let to) = runner.phase {
+                NextExerciseView(
+                    from: from,
+                    to: to,
+                    lastRecordedSet: runner.lastRecordedSet,
+                    onStart: {
+                        if let next = to.nextPendingSet {
+                            runner.focus(on: next)
+                        }
+                    },
+                    onUndoLast: {
+                        if let last = runner.lastRecordedSet {
+                            runner.undo(last)
+                        }
+                    },
+                    onPickAnother: { isShowingExercisePicker = true }
+                )
+            } else if runner.phase == .finished {
+                SessionCompleteView(
+                    session: runner.session,
+                    onViewMarkdown: {
+                        pendingExport = MarkdownExport(
+                            title: "세션 마크다운",
+                            markdown: SessionMarkdownExporter.export(runner.session)
+                        )
+                    },
+                    onClose: onEnd
+                )
             }
         }
         .sheet(item: $pendingFailureSet) { set in
             FailureInputSheet(set: set) { actualReps, actualWeight in
                 runner.recordFailure(for: set, actualReps: actualReps, actualWeight: actualWeight)
             }
+        }
+        .sheet(isPresented: $isShowingExercisePicker) {
+            ExercisePickerSheet(
+                session: runner.session,
+                focusedExerciseID: runner.focusedSet?.exercise?.id,
+                onSelect: { exercise in
+                    if let next = exercise.nextPendingSet {
+                        runner.focus(on: next)
+                    }
+                }
+            )
+        }
+        .sheet(item: $pendingExport) { export in
+            MarkdownPreviewView(title: export.title, markdown: export.markdown)
         }
         .confirmationDialog(
             "세션을 중단할까요?",
