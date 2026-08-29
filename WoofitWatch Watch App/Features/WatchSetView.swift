@@ -7,6 +7,8 @@ struct WatchSetView: View {
     let runner: SessionRunner
     let onEnd: () -> Void
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.watchSyncService) private var syncService
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
 
@@ -54,10 +56,27 @@ struct WatchSetView: View {
         ) {
             Button("중단", role: .destructive) {
                 runner.abandon()
+                finishSession()
                 onEnd()
             }
             Button("계속하기", role: .cancel) {}
         }
+        // 기록마다 즉시 큐에 넣는다 — 전송을 기다리게 하면 F-3 100ms 수용 기준이 깨진다(F-8).
+        .onChange(of: runner.lastRecordedSet) { _, set in
+            guard let set, let payload = SetResultPayload.make(for: set) else { return }
+            try? syncService?.sendSetResult(payload)
+        }
+        // 마지막 세트를 기록하면 SessionRunner 가 세션을 자동으로 완료 처리한다(F-4).
+        .onChange(of: runner.phase) { _, phase in
+            guard case .finished = phase else { return }
+            finishSession()
+        }
+    }
+
+    /// 세션 종료 스냅샷을 보내 세트별 전송 유실을 복구하고, 워치 저장소를 정리한다(F-8).
+    private func finishSession() {
+        try? syncService?.sendSessionSnapshot(SessionSnapshotPayload.make(for: runner.session))
+        try? WatchRetention.prune(in: modelContext)
     }
 
     @ViewBuilder

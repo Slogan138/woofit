@@ -18,6 +18,7 @@ struct RoutineEditorView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.watchSyncService) private var syncService
 
     @State private var weekdaySelection: Set<Weekday>
     @State private var lastRecords: [String: LastRecord] = [:]
@@ -173,6 +174,7 @@ struct RoutineEditorView: View {
             // 인메모리 fetch 실패(= SwiftData 저장소 손상)만 던진다. 위 onChange 와 같은 이유로 무시한다.
             try? RoutineScheduler.assign(Array(weekdaySelection), to: routine, in: modelContext)
         }
+        try? syncService?.pushRoutines(in: modelContext)
         dismiss()
     }
 }

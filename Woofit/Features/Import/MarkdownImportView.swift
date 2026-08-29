@@ -10,6 +10,7 @@ import WoofitCore
 struct MarkdownImportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.watchSyncService) private var syncService
     @Query(sort: \Routine.updatedAt, order: .reverse) private var existingRoutines: [Routine]
 
     private enum Target: Hashable {
@@ -150,6 +151,7 @@ struct MarkdownImportView: View {
             guard let existing = existingRoutines.first(where: { $0.id == id }) else { return }
             parseResult.routine.apply(to: existing)
         }
+        try? syncService?.pushRoutines(in: modelContext)
         dismiss()
     }
 }

@@ -5,6 +5,7 @@ import WoofitCore
 /// P1 · 루틴 목록. 오늘 요일에 배정된 루틴을 위에 둔다(F-2).
 struct RoutineListView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.watchSyncService) private var syncService
     @Query(sort: \Routine.updatedAt, order: .reverse) private var routines: [Routine]
 
     @State private var pendingExport: MarkdownExport?
@@ -111,10 +112,17 @@ struct RoutineListView: View {
 
     private func duplicate(_ routine: Routine) {
         modelContext.insert(routine.duplicate())
+        pushRoutines()
     }
 
     private func delete(_ routine: Routine) {
         modelContext.delete(routine)
+        pushRoutines()
+    }
+
+    /// 루틴 목록이 바뀔 때마다 워치로 최신 상태를 다시 내려보낸다(F-8).
+    private func pushRoutines() {
+        try? syncService?.pushRoutines(in: modelContext)
     }
 }
 
