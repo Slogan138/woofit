@@ -64,6 +64,8 @@ private struct ExercisePickerRow: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // 탭해도 무반응이라는 게 캡션 텍스트만으로는 잘 안 드러나므로 행 자체를 흐리게 한다.
+        .opacity(exercise.isComplete && !isFocused ? 0.5 : 1)
     }
 }
 
