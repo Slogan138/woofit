@@ -88,7 +88,7 @@ struct WatchSetView: View {
                             .buttonStyle(.borderedProminent)
                     }
 
-                    Text("\(runner.session.recordedSetCount)/\(runner.session.totalSetCount) 세트")
+                    Text("\(runner.session.completedExerciseCount)/\(runner.session.totalExerciseCount) 종목 · \(runner.session.recordedSetCount)/\(runner.session.totalSetCount) 세트")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

@@ -288,6 +288,27 @@ func restoreFindsInProgressSession() throws {
 }
 
 @MainActor
+@Test("종목이 0개인 루틴으로 세션을 시작해도 진행 중으로 남지 않는다")
+func startingWithNoExercisesDoesNotStayInProgress() throws {
+    // 마크다운 가져오기에서 모든 행이 파싱에 실패하면 종목 0개짜리 루틴이 만들어질 수 있다.
+    // init 이 곧바로 .finished 로 판정하면서 session.finish() 를 부르지 않으면
+    // phase 는 완료인데 state 는 계속 inProgress 로 남아 재시작마다 이 세션이 복원된다.
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "빈 루틴")
+    context.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let runner = SessionRunner(session: session)
+
+    #expect(runner.phase == .finished)
+    #expect(session.state != .inProgress)
+    #expect(try SessionRestore.fetchInProgress(in: context) == nil)
+}
+
+@MainActor
 @Test("일시정지 중이어도 복원 대상에 포함된다")
 func restoreFindsPausedSession() throws {
     let container = try WoofitModelContainer.makeInMemoryContainer()

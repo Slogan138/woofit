@@ -30,9 +30,10 @@ public extension SessionExercise {
     }
 
     /// 모든 세트가 처리됐는가. 성공·실패·건너뜀을 가리지 않는다(F-4).
+    /// 세트가 0개면 처리할 게 없으므로 완료로 본다 — 그렇지 않으면 빈 종목이
+    /// 영원히 미완료로 남아 세션이 다음 종목으로도, 완료로도 넘어가지 못한다.
     var isComplete: Bool {
-        let all = sortedSets
-        return !all.isEmpty && all.allSatisfy { $0.result.isRecorded }
+        sortedSets.allSatisfy { $0.result.isRecorded }
     }
 
     var nextPendingSet: SessionSet? {

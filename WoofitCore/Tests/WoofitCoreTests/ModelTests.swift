@@ -152,6 +152,27 @@ func advancesToNextExercise() throws {
 }
 
 @MainActor
+@Test("세트가 0개인 종목은 완료로 간주된다")
+func exerciseWithNoSetsIsComplete() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "가슴")
+    context.insert(routine)
+    _ = routine.appendExercise(named: "빈 종목")
+    let bench = routine.appendExercise(named: "벤치프레스")
+    bench.appendSets(count: 1, weight: 80, reps: 5)
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let empty = session.sortedExercises[0]
+    #expect(empty.isComplete)
+    // 빈 종목은 건너뛰고 세트가 있는 종목이 현재 종목이어야 한다.
+    #expect(session.currentExercise?.name == "벤치프레스")
+}
+
+@MainActor
 @Test("남은 세트가 있는 채로 끝내면 중단으로 기록된다")
 func unfinishedSessionIsAbandoned() throws {
     let container = try WoofitModelContainer.makeInMemoryContainer()
@@ -205,8 +226,10 @@ func progressCountsByExerciseAndBySet() throws {
 }
 
 @MainActor
-@Test("세트가 하나도 없는 종목은 완료로 세지 않는다")
-func exerciseWithNoSetsIsNeverCompleted() throws {
+@Test("세트가 하나도 없는 종목도 완료로 센다")
+func exerciseWithNoSetsCountsAsCompleted() throws {
+    // 처리할 세트가 없는 종목을 영원히 미완료로 두면 세션이 다음 종목으로도,
+    // 완료로도 넘어가지 못하는 함정이 된다 — 종목이 0개인 루틴 버그와 뿌리가 같다.
     let container = try WoofitModelContainer.makeInMemoryContainer()
     let context = container.mainContext
 
@@ -218,7 +241,7 @@ func exerciseWithNoSetsIsNeverCompleted() throws {
     context.insert(session)
 
     #expect(session.totalExerciseCount == 1)
-    #expect(session.completedExerciseCount == 0)
+    #expect(session.completedExerciseCount == 1)
     #expect(session.totalSetCount == 0)
 }
 
