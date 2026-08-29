@@ -22,7 +22,9 @@ public enum SyncMerger {
 
     // MARK: - 세션 종료 스냅샷 (워치 → 폰)
 
-    /// 담긴 세트마다 위 `merge(_:into:)` 를 그대로 호출해, 세트별 병합과 같은 결과를 보장한다.
+    /// 담긴 세트마다 위 `merge(_:into:)` 를 그대로 호출한다. 미수행 세트(`recordedAt`
+    /// 없음)도 포함돼 있어 세션 전체 구조(세트 개수 등)가 복원된다 — 기록값은 덮어쓰지
+    /// 않는다(`apply` 참고).
     public static func merge(_ payload: SessionSnapshotPayload, into context: ModelContext) throws {
         let session = try fetchOrCreateSession(payload, in: context)
         for setPayload in payload.sets {
@@ -83,13 +85,17 @@ public enum SyncMerger {
     // MARK: - 내부
 
     /// `recordedAt` 이 나중인 값이 이긴다. 이전 값이면 조용히 무시한다(역순 도착 대비).
+    /// `recordedAt` 이 없는 payload(스냅샷의 미수행 세트)는 세트 존재만 보장하고 값은
+    /// 절대 덮어쓰지 않는다 — 그렇지 않으면 이미 기록된 세트가 스냅샷 병합 순서에 따라
+    /// 미수행으로 되돌아갈 수 있다.
     private static func apply(_ payload: SetResultPayload, to set: SessionSet) {
-        if let existing = set.recordedAt, existing > payload.recordedAt { return }
+        guard let newRecordedAt = payload.recordedAt else { return }
+        if let existing = set.recordedAt, existing > newRecordedAt { return }
         set.result = payload.result
         set.actualWeight = payload.actualWeight
         set.actualReps = payload.actualReps
         set.restSeconds = payload.restSeconds
-        set.recordedAt = payload.recordedAt
+        set.recordedAt = newRecordedAt
     }
 
     private static func fetchOrCreateSession(
