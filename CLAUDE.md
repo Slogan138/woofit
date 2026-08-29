@@ -163,12 +163,17 @@ PRD §7 에서 온 것들. 어기면 조용히 데이터가 망가지므로 먼�
 
 ```sh
 # 주 작업 폴더에서
+git status --short                # 비어 있어야 한다. 아니면 커밋하거나 git stash -u
 git checkout main
 git merge --no-ff fix/<슬러그>
 git worktree remove ../woofit-fix-<슬러그>
 git branch -d fix/<슬러그>        # main 을 체크아웃한 상태여야 정확히 판정된다
 git checkout <원래 브랜치>
 ```
+
+**미커밋 변경이 있으면 먼저 치운다.** 브랜치를 옮기면 그 변경이 따라다녀서, 충돌이 나면
+체크아웃이 막히고 안 나도 어느 브랜치의 작업인지 헷갈린다. `git stash -u` 로 치우고
+머지가 끝난 뒤 `git stash pop` 으로 되돌린다. `-u` 가 없으면 새로 만든 파일이 남는다.
 
 `git branch -d` 는 **현재 HEAD 기준**으로 머지 여부를 따진다. 기능 브랜치에 선 채로
 실행하면 이미 `main` 에 머지된 브랜치도 거부한다. 그때 `-D` 로 밀지 말고,
