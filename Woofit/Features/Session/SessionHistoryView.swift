@@ -6,6 +6,8 @@ import WoofitCore
 struct SessionHistoryView: View {
     @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
 
+    @State private var pendingExport: MarkdownExport?
+
     var body: some View {
         NavigationStack {
             List(sessions) { session in
@@ -21,8 +23,20 @@ struct SessionHistoryView: View {
                     .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 2)
+                .swipeActions(edge: .trailing) {
+                    Button("마크다운", systemImage: "doc.on.doc") {
+                        pendingExport = MarkdownExport(
+                            title: "세션 마크다운",
+                            markdown: SessionMarkdownExporter.export(session)
+                        )
+                    }
+                    .tint(.accentColor)
+                }
             }
             .navigationTitle("기록")
+            .sheet(item: $pendingExport) { export in
+                MarkdownPreviewView(title: export.title, markdown: export.markdown)
+            }
             .overlay {
                 if sessions.isEmpty {
                     ContentUnavailableView(

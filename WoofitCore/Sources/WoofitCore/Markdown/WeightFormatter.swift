@@ -16,6 +16,15 @@ public enum WeightFormatter {
         "\(string(weight)) × \(reps)"
     }
 
+    /// 세트마다 무게가 다른 피라미드 세트의 목표 표기. `70~80kg × 5`(PRD §6.1).
+    /// 무게가 전부 같으면 `target(weight:reps:)` 과 같은 결과를 낸다.
+    public static func targetRange(weights: [Double], reps: Int) -> String {
+        guard let low = weights.min(), let high = weights.max() else { return "" }
+        guard low != high else { return target(weight: low, reps: reps) }
+        let lowLabel = string(low).replacingOccurrences(of: "kg", with: "")
+        return "\(lowLabel)~\(string(high)) × \(reps)"
+    }
+
     /// `2'30"` 형태. 마크다운 `휴식` 열.
     public static func rest(_ seconds: Double) -> String {
         let total = Int(seconds.rounded())

@@ -22,13 +22,13 @@
 
 ## 작업 단위
 
-- [ ] 1. `MarkdownStyle` — 형식 A/B 선택, 이모지/텍스트 표기 전환
-- [ ] 2. `MarkdownTable` — 파이프 표 조립 유틸. 셀 이스케이프를 여기서 한 곳으로 모은다
-- [ ] 3. `SessionMarkdownExporter` — 형식 A
-- [ ] 4. 형식 B
-- [ ] 5. `RoutineMarkdownExporter` — 루틴 형식 + `지난 기록` 열
-- [ ] 6. 테스트
-- [ ] 7. 폰 UI — 미리보기 + `UIPasteboard` 복사
+- [x] 1. `MarkdownStyle` — 형식 A/B 선택, 이모지/텍스트 표기 전환
+- [x] 2. `MarkdownTable` — 파이프 표 조립 유틸. 셀 이스케이프를 여기서 한 곳으로 모은다
+- [x] 3. `SessionMarkdownExporter` — 형식 A
+- [x] 4. 형식 B
+- [x] 5. `RoutineMarkdownExporter` — 루틴 형식 + `지난 기록` 열
+- [x] 6. 테스트
+- [x] 7. 폰 UI — 미리보기 + `UIPasteboard` 복사
 
 ## 파일
 
@@ -40,6 +40,8 @@
 | `WoofitCore/Sources/WoofitCore/Markdown/RoutineMarkdownExporter.swift` | 루틴 → 마크다운 |
 | `WoofitCore/Tests/WoofitCoreTests/MarkdownExportTests.swift` | 테스트 |
 | `Woofit/Features/Export/MarkdownPreviewView.swift` | 미리보기 + 복사 (P5) |
+| `Woofit/Features/Routine/RoutineListView.swift` | 스와이프 → 루틴 마크다운 내보내기 진입점 |
+| `Woofit/Features/Session/SessionHistoryView.swift` | 스와이프 → 세션 마크다운 재복사 진입점 (P6) |
 
 ## 설계 메모
 
