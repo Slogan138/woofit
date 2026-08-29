@@ -146,6 +146,27 @@ public final class SessionRunner: Identifiable {
 4. 앱을 강제 종료하고 재실행해도 진행 위치가 유지됨
 5. [CLAUDE.md 완료 기준](../../CLAUDE.md#완료-기준) 충족
 
+## 실사용에서 나온 워치 UI 수정
+
+2026-08-29 실기기 사용 중 확인. 셋 다 워치 화면에만 해당한다.
+
+**① 루틴 미리보기의 "시작" 버튼을 맨 위로** — 지금은 `WatchRoutinePreviewView` 의 `List`
+맨 끝에 있어 종목이 많으면 끝까지 스크롤해야 누를 수 있다. 헬스장에서 바로 시작하는 게
+주 동작이므로 위로 올린다. 루틴 확인은 그 아래에서 스크롤로 한다.
+
+**② 실패 입력에서 크라운이 스크롤을 돌린다** — `WatchFailureInputView` 의 횟수 `Text` 에
+`.focusable()` 과 `.digitalCrownRotation` 이 붙어 있지만 `ScrollView` 안이라, 포커스가
+잡히지 않으면 크라운이 스크롤로 간다. `@FocusState` 로 화면 진입 시 횟수에 포커스를
+명시적으로 주어야 한다.
+
+**③ 크라운 민감도가 너무 높다** — 한 칸 돌리기 어려워 횟수 조정이 안 된다.
+`.digitalCrownRotation` 의 `sensitivity:` 를 낮추고(`.low`), `isContinuous: false`,
+`isHapticFeedbackEnabled: true` 로 한 칸씩 딸깍 넘어가게 한다. 지금은 이 인자들을
+받지 않는 짧은 오버로드를 쓰고 있다.
+
+②③ 은 함께 고쳐야 의미가 있다. 포커스만 잡아도 민감도가 높으면 여전히 못 쓰고,
+민감도만 낮춰도 포커스가 없으면 스크롤이 돈다.
+
 ## 주의점
 
 - **성공 경로에 확인 대화상자를 넣지 않는다.** 1탭이 수용 기준이다.
