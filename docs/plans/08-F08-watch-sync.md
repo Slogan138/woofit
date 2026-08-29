@@ -19,14 +19,49 @@
 
 ## 작업 단위
 
-- [ ] 1. Payload 값 타입 — `RoutinePayload`, `SetResultPayload`, `SessionSnapshotPayload`
-- [ ] 2. `SyncMerger` — payload → SwiftData 반영. **순수하게 테스트 가능하게**
-- [ ] 3. `WatchSyncService` — `WCSession` 래퍼
-- [ ] 4. 폰 → 워치 루틴 전송 (`updateApplicationContext`)
-- [ ] 5. 워치 → 폰 세트 결과 전송 (`transferUserInfo`)
-- [ ] 6. 세션 종료 스냅샷 전송
-- [ ] 7. 워치 보관 정리 — 최근 10건만 유지
-- [ ] 8. 테스트
+- [x] 1. Payload 값 타입 — `RoutinePayload`, `SetResultPayload`, `SessionSnapshotPayload`
+- [x] 2. `SyncMerger` — payload → SwiftData 반영. **순수하게 테스트 가능하게**
+- [x] 3. `WatchSyncService` — `WCSession` 래퍼
+- [x] 4. 폰 → 워치 루틴 전송 (`updateApplicationContext`)
+- [x] 5. 워치 → 폰 세트 결과 전송 (`transferUserInfo`)
+- [x] 6. 세션 종료 스냅샷 전송
+- [x] 7. 워치 보관 정리 — 최근 10건만 유지
+- [x] 8. 테스트
+
+`WoofitCore` 쪽 구현·테스트는 끝났다. 화면·앱 통합도 끝났다 — 아래 "화면·앱 통합" 참고.
+남은 건 완료 기준 2~4번의 실기기 검증뿐이다.
+
+## 화면·앱 통합
+
+전송·수신 로직(`WatchSyncService`)은 방향에 상관없이 같은 클래스를 양쪽 앱이 그대로 쓴다.
+차이는 **어느 화면에서 언제 호출하느냐**뿐이다.
+
+| 앱 | 지점 | 호출 |
+| --- | --- | --- |
+| 폰 · 워치 | `WoofitApp` / `WoofitWatchApp` 시작 | `WatchSyncService` 생성 + `activate()`, `\.watchSyncService` 환경값으로 주입 |
+| 폰 | `RootView` 진입 시 | `pushRoutines(in:)` — 앱을 껐다 켠 사이 바뀐 상태도 맞춘다 |
+| 폰 | `RoutineListView` 복제·삭제 | `pushRoutines(in:)` |
+| 폰 | `RoutineEditorView` 저장(`완료`/`저장`) | `pushRoutines(in:)` |
+| 폰 | `MarkdownImportView` 적용 | `pushRoutines(in:)` |
+| 폰 | 세션 종료(`RootView.endSession`) | `pushRoutines(in:)` — 직전 기록이 바뀌므로 다시 내려보낸다(F-9) |
+| 워치 | `WatchSetView` 세트 기록마다 (`runner.lastRecordedSet` 변화 감지) | `sendSetResult(_:)` |
+| 워치 | `WatchSetView` 세션 종료·중단 | `sendSessionSnapshot(_:)` + `WatchRetention.prune(in:)` |
+
+`WatchSyncService.pushRoutines(in:)` 은 로컬 저장소에서 루틴 전체와 직전 기록을 모아
+`RoutinePayload` 를 만들고 바로 전송한다 — 화면은 "언제 다시 보낼지"만 정하면 되고
+payload 조립은 몰라도 된다.
+
+### 남은 간극 — 세션 이어받기 (알려진 제한)
+
+요구사항의 "폰에서 시작한 세션을 워치가 이어받고, 반대도 된다"는 **워치 → 폰 방향만**
+구현했다. `sendInProgressSession` API 는 만들어뒀지만 어느 화면에서도 호출하지 않는다.
+
+이유: 받는 쪽이 그 payload 를 로컬 진행 중 세션으로 받아들여 **화면을 자동으로 전환**해야
+의미가 있는데, 워치 쪽에는 그 역할을 할 코디네이터가 없다(폰의 `SessionCoordinator` +
+`RootView.fullScreenCover` 에 대응하는 것이 `WatchRootView` 에는 없다). 이 화면 구조를
+새로 만드는 일은 전송 배선과 다른 종류의 작업이라 판단해 이번에는 포함하지 않았다 —
+"완료되지 않은 구현을 반쯤 남기지 않는다" 원칙에 따라 API 자리만 마련해두고 화면 작업은
+별도로 진행한다.
 
 ## 파일
 
