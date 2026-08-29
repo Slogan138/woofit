@@ -19,7 +19,7 @@ public enum MarkdownTableParser {
 
     /// 텍스트 안에서 첫 번째 표를 찾아 돌려준다. 표가 없으면 `nil`.
     public static func parse(_ text: String) -> ParsedTable? {
-        let lines = text.components(separatedBy: .newlines)
+        let lines = text.normalizingNewlines().components(separatedBy: .newlines)
         var index = 0
         while index < lines.count - 1 {
             if isRow(lines[index]), isSeparatorRow(lines[index + 1]) {

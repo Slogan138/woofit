@@ -250,6 +250,66 @@ func targetRangeWithSingleSetUsesLowValue() {
     #expect(result.routine.exercises[0].sets.map(\.targetWeight) == [70])
 }
 
+// MARK: - 개행 정규화
+
+@Test("CRLF 개행도 LF 와 같은 결과를 낸다")
+func crlfNewlinesParseSameAsLF() {
+    let lf = """
+    ## 등
+
+    | 종목 | 목표 | 세트 | 지난 기록 |
+    | --- | --- | --- | --- |
+    | 랫풀다운 | 40kg × 10 | 3 | |
+    """
+    let crlf = lf.replacingOccurrences(of: "\n", with: "\r\n")
+
+    let lfResult = RoutineMarkdownImporter.parse(lf)
+    let crlfResult = RoutineMarkdownImporter.parse(crlf)
+
+    #expect(crlfResult.issues.isEmpty)
+    #expect(crlfResult.routine.title == lfResult.routine.title)
+    #expect(crlfResult.routine.category == lfResult.routine.category)
+    #expect(crlfResult.routine.exercises.map(\.name) == lfResult.routine.exercises.map(\.name))
+    #expect(crlfResult.routine.exercises[0].sets.map(\.targetWeight) == lfResult.routine.exercises[0].sets.map(\.targetWeight))
+}
+
+@Test("CR 단독 개행도 계속 동작한다")
+func crOnlyNewlinesStillParse() {
+    let lf = """
+    ## 등
+
+    | 종목 | 목표 | 세트 | 지난 기록 |
+    | --- | --- | --- | --- |
+    | 랫풀다운 | 40kg × 10 | 3 | |
+    """
+    let cr = lf.replacingOccurrences(of: "\n", with: "\r")
+
+    let lfResult = RoutineMarkdownImporter.parse(lf)
+    let crResult = RoutineMarkdownImporter.parse(cr)
+
+    #expect(crResult.issues.isEmpty)
+    #expect(crResult.routine.exercises.map(\.name) == lfResult.routine.exercises.map(\.name))
+    #expect(crResult.routine.exercises[0].sets.map(\.targetWeight) == lfResult.routine.exercises[0].sets.map(\.targetWeight))
+}
+
+@Test("왕복 — CRLF 로 내보낸 루틴도 같은 루틴으로 읽힌다")
+func routineRoundTripSurvivesCRLF() {
+    let routine = Routine(name: "월요일", category: "가슴", weekdayMask: Weekday.mask(of: [.monday, .thursday]))
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 5, weight: 80, reps: 5)
+    routine.appendExercise(named: "인클라인 덤벨 프레스").appendSets(count: 4, weight: 24, reps: 10)
+
+    let markdown = RoutineMarkdownExporter.export(routine).replacingOccurrences(of: "\n", with: "\r\n")
+    let result = RoutineMarkdownImporter.parse(markdown)
+
+    #expect(result.issues.isEmpty)
+    #expect(result.routine.title == routine.name)
+    #expect(result.routine.weekdayMask == routine.weekdayMask)
+    #expect(result.routine.exercises.map(\.name) == routine.sortedExercises.map(\.name))
+    for (parsed, original) in zip(result.routine.exercises, routine.sortedExercises) {
+        #expect(parsed.sets.map(\.targetWeight) == original.sortedSets.map(\.targetWeight))
+    }
+}
+
 // MARK: - 관대한 파싱
 
 @Test("깨진 행 하나가 있어도 나머지는 읽힌다")

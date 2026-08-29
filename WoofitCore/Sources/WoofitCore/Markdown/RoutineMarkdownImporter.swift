@@ -7,10 +7,11 @@ import Foundation
 public enum RoutineMarkdownImporter {
 
     public static func parse(_ text: String) -> ParseResult {
-        let lines = text.components(separatedBy: .newlines)
+        let normalized = text.normalizingNewlines()
+        let lines = normalized.components(separatedBy: .newlines)
         let metadata = parseMetadata(lines: lines)
 
-        guard let table = MarkdownTableParser.parse(text) else {
+        guard let table = MarkdownTableParser.parse(normalized) else {
             return ParseResult(
                 routine: ParsedRoutine(title: metadata.title, category: metadata.category, weekdayMask: metadata.weekdayMask, exercises: []),
                 issues: [ParseIssue(line: "", reason: "표를 찾을 수 없습니다")]
