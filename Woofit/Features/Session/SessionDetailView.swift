@@ -52,7 +52,7 @@ private struct SummaryRow: View {
                 Text("· \(session.state.displayName)")
                     .foregroundStyle(.secondary)
             }
-            .font(.headline)
+            .font(Typography.itemName)
 
             Text("\(session.successSetCount)/\(session.totalSetCount) 세트 성공")
             Text("소요 시간 \(WeightFormatter.duration(session.duration))")
@@ -74,17 +74,20 @@ private struct DetailSetRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(set.order + 1)세트")
                 Text(WeightFormatter.target(weight: set.targetWeight, reps: set.targetReps))
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
+            // 기호가 이미 상태를 구분하므로 색은 보조 정보다(PRD §9). 화면마다 색이
+            // 즉흥적으로 갈리던 문제(디자인 토큰 계획 ①)라 모델의 색을 그대로 쓴다.
             Text(resultText)
+                .foregroundStyle(set.result.tintColor)
 
             if let rest = set.restSeconds {
                 Text(WeightFormatter.rest(rest))
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
                     .frame(width: 56, alignment: .trailing)
             }

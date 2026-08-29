@@ -17,7 +17,7 @@ struct WeekdayPicker: View {
                     }
                 } label: {
                     Text(weekday.shortName)
-                        .font(.subheadline.weight(.medium))
+                        .font(Typography.itemName)
                         .frame(width: 32, height: 32)
                         .background(isSelected ? Color.accentColor : Color.secondary.opacity(0.15))
                         .foregroundStyle(isSelected ? Color.white : Color.primary)

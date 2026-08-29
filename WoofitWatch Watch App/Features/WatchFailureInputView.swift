@@ -26,10 +26,13 @@ struct WatchFailureInputView: View {
         ScrollView {
             VStack(spacing: 8) {
                 Text("실제 횟수")
-                    .font(.caption2)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
+                // Digital Crown 으로 돌리는 이 화면의 유일한 값이라 크게 키운다.
+                // 고정 포인트 크기는 Dynamic Type 을 깨므로(PRD §9) 스케일되는 텍스트 스타일을 쓴다.
                 Text("\(Int(actualReps))회")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(.system(.largeTitle, design: .rounded).bold())
+                    .monospacedDigit()
                     .focusable(true)
                     .focused($repsFocused)
                     .digitalCrownRotation(
@@ -44,7 +47,7 @@ struct WatchFailureInputView: View {
 
                 Stepper(value: $actualWeight, in: 0...max(set.targetWeight, actualWeight), step: 2.5) {
                     Text(WeightFormatter.string(actualWeight))
-                        .font(.caption)
+                        .font(Typography.secondary)
                 }
 
                 Button("기록") {
@@ -56,7 +59,7 @@ struct WatchFailureInputView: View {
 
                 Button("취소", role: .cancel) { dismiss() }
                     .buttonStyle(.plain)
-                    .font(.caption2)
+                    .font(Typography.secondary)
             }
             .padding(.horizontal, 2)
         }

@@ -51,7 +51,7 @@ private struct ExercisePickerRow: View {
                 Text(exercise.name)
                     .foregroundStyle(exercise.isComplete ? .secondary : .primary)
                 Text("\(recordedCount)/\(exercise.sortedSets.count) 세트")
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -60,7 +60,7 @@ private struct ExercisePickerRow: View {
                     .foregroundStyle(Color.accentColor)
             } else if exercise.isComplete {
                 Text("완료")
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
         }

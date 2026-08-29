@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// 세트 하나의 처리 결과. PRD §7 의 4상태.
 public enum SetResult: String, Codable, CaseIterable, Sendable {
@@ -32,4 +33,16 @@ public enum SetResult: String, Codable, CaseIterable, Sendable {
 
     /// 결과가 기록된 상태인지. `pending` 만 미처리로 본다.
     public var isRecorded: Bool { self != .pending }
+
+    /// 결과를 나타내는 색조. 화면마다 색이 즉흥적으로 갈리는 문제(디자인 토큰 계획 ①)를
+    /// 막기 위해 결과의 시각 표현을 모델 한 곳에 둔다. 기호(`markdownSymbol`)가 이미
+    /// 상태를 구분하므로 색은 항상 보조 정보로만 쓴다.
+    public var tintColor: Color {
+        switch self {
+        case .pending: .secondary
+        case .success: .green
+        case .failure: .red
+        case .skipped: .secondary
+        }
+    }
 }

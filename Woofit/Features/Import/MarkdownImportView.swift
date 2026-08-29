@@ -93,9 +93,9 @@ struct MarkdownImportView: View {
                     Text(exercise.name)
                     Spacer()
                     Text(summary(for: exercise))
+                        .font(Typography.secondary)
                         .foregroundStyle(.secondary)
                 }
-                .font(.subheadline)
             }
         }
     }
@@ -112,7 +112,7 @@ struct MarkdownImportView: View {
                     Text(issue.line.isEmpty ? "(빈 줄)" : issue.line)
                         .font(.system(.caption, design: .monospaced))
                     Text(issue.reason)
-                        .font(.caption2)
+                        .font(Typography.secondary)
                         .foregroundStyle(.secondary)
                 }
             }

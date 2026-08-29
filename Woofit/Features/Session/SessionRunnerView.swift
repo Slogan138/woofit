@@ -31,7 +31,7 @@ struct SessionRunnerView: View {
                 Section {
                     if let record = runner.lastRecords[exercise.normalizedName] {
                         Text(record.summary())
-                            .font(.caption)
+                            .font(Typography.secondary)
                             .foregroundStyle(.secondary)
                     }
                     ForEach(exercise.sortedSets) { set in
@@ -161,7 +161,7 @@ private struct ProgressRow: View {
                 Spacer()
                 Text("\(runner.session.recordedSetCount)/\(runner.session.totalSetCount) 세트")
             }
-            .font(.caption)
+            .font(Typography.secondary)
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
@@ -179,9 +179,9 @@ private struct SetRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(set.order + 1)세트")
-                    .font(isFocused ? .headline : .body)
+                    .font(isFocused ? Typography.itemName : .body)
                 Text(WeightFormatter.target(weight: set.targetWeight, reps: set.targetReps))
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
 
@@ -193,10 +193,12 @@ private struct SetRow: View {
                     HStack(spacing: 8) {
                         Button("실패", action: onFailure)
                             .buttonStyle(.bordered)
-                            .tint(.red)
+                            .tint(SetResult.failure.tintColor)
                         Button("성공", action: onSuccess)
                             .buttonStyle(.borderedProminent)
                     }
+                    // 땀 손으로 가장 자주 누르는 버튼이라 최소 터치 영역을 키운다(디자인 토큰 계획 ⑤).
+                    .controlSize(.large)
                 } else {
                     Text("대기").foregroundStyle(.secondary)
                 }
@@ -216,11 +218,12 @@ private struct ResultBadge: View {
         Button(action: onUndo) {
             HStack(spacing: 4) {
                 Text(set.result.markdownSymbol)
+                    .foregroundStyle(set.result.tintColor)
                 if set.result == .failure {
                     Text("\(set.performedReps)회")
                 }
                 Image(systemName: "arrow.uturn.backward")
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
         }
@@ -236,7 +239,7 @@ private struct PausedOverlay: View {
             Color.black.opacity(0.4).ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("일시정지됨")
-                    .font(.title2.bold())
+                    .font(Typography.screenTitle)
                     .foregroundStyle(.white)
                 Button("재개", action: onResume)
                     .buttonStyle(.borderedProminent)

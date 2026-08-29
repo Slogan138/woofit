@@ -12,8 +12,9 @@ struct RestTimerView: View {
                 WeightFormatter.rest(context.date.timeIntervalSince(startedAt)),
                 systemImage: "stopwatch"
             )
-            .font(.title3.monospacedDigit())
-            .foregroundStyle(.orange)
+            .font(Typography.value)
+            .monospacedDigit()
+            .foregroundStyle(ColorRole.rest)
         }
     }
 }

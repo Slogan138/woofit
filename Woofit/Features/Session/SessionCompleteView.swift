@@ -19,12 +19,12 @@ struct SessionCompleteView: View {
                         .font(.system(size: 48))
                         .foregroundStyle(.green)
                     Text("세션 완료")
-                        .font(.largeTitle.bold())
+                        .font(Typography.screenTitle)
                 }
 
                 VStack(spacing: 4) {
                     Text("\(session.successSetCount)/\(session.totalSetCount) 세트 성공")
-                        .font(.headline)
+                        .font(Typography.itemName)
                     if let averageRest = session.averageRestSeconds {
                         Text("평균 휴식 \(WeightFormatter.rest(averageRest))")
                             .font(.subheadline)

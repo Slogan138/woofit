@@ -51,11 +51,11 @@ struct ExerciseEditorRow: View {
     var body: some View {
         Section {
             TextField("종목명", text: nameBinding)
-                .font(.headline)
+                .font(Typography.itemName)
 
             if let lastRecord {
                 LabeledContent("직전 기록", value: lastRecord.summary())
-                    .font(.caption)
+                    .font(Typography.secondary)
                     .foregroundStyle(.secondary)
             }
 

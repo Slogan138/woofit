@@ -23,17 +23,17 @@ struct NextExerciseView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     Text(to.name)
-                        .font(.largeTitle.bold())
+                        .font(Typography.screenTitle)
                         .multilineTextAlignment(.center)
                     Text("\(to.sortedSets.count)세트")
-                        .font(.headline)
+                        .font(Typography.itemName)
                         .foregroundStyle(.secondary)
                 }
 
                 VStack(spacing: 6) {
                     ForEach(to.sortedSets) { set in
                         Text(WeightFormatter.target(weight: set.targetWeight, reps: set.targetReps))
-                            .font(.body)
+                            .font(Typography.secondary)
                     }
                 }
 
