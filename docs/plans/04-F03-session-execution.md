@@ -43,8 +43,20 @@
 - [x] 8. 테스트
 
 **M2 (워치)**
-- [ ] 9. `WatchSetView` — 성공/실패 두 버튼 (W3)
-- [ ] 10. Digital Crown 횟수 입력
+- [x] 9. `WatchSetView` — 성공/실패 두 버튼 (W3)
+- [x] 10. Digital Crown 횟수 입력
+
+이 화면들은 F-08(폰↔워치 동기화)이 없는 상태에서 만들어졌다. 워치는 자기 로컬 저장소만
+읽고 쓸 뿐, 폰의 루틴을 받아올 방법이 아직 없다 — `WatchRootView` 는 여전히 "폰에서 루틴을
+만드세요"로 안내한다. 그래서 실기기 검증 대신, 워치 로컬 저장소에 직접 씨드 데이터를 넣어
+"시작 → 성공 → 실패(Digital Crown 기본값 + 무게 스테퍼) → 성공 → 완료" 전 과정을
+워치 시뮬레이터에서 확인했다. `WCSession` 을 통한 실제 폰 ↔ 워치 왕복은 F-08의 몫이다.
+
+**M2 범위에서 의도적으로 뺀 것.** 워치 화면은 성공/실패 두 버튼과 직전 기록 한 줄로
+압축한다(PRD 화면표의 W3 자체가 P4보다 좁게 정의되어 있다). 그래서 이번 pass 에는
+되돌리기(undo)·일시정지·앱 재시작 시 이어받기를 넣지 않았다 — 대신 진행 중 세션을
+`navigationBarBackButtonHidden` 으로 감싸 "중단" 버튼으로만 나가게 해서 고아 세션이
+생기지 않게 막았다. 필요해지면 별도로 채워 넣는다.
 
 ## 파일
 
@@ -56,7 +68,8 @@
 | `Woofit/Features/Session/SessionRunnerView.swift` | P4 |
 | `Woofit/Features/Session/FailureInputSheet.swift` | 실패 횟수 입력 |
 | `Woofit/Features/Session/SessionCoordinator.swift` | 루틴 상세의 "시작"과 앱 시작 시 복원, 두 진입점을 `RootView` 의 `fullScreenCover` 로 모으는 화면 상태 |
-| `WoofitWatch Watch App/Features/WatchSetView.swift` | W3 (M2, 아직 없음) |
+| `WoofitWatch Watch App/Features/WatchSetView.swift` | W3 |
+| `WoofitWatch Watch App/Features/WatchFailureInputView.swift` | 워치 실패 횟수 입력 (Digital Crown) |
 
 ## 설계 메모
 

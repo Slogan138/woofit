@@ -4,7 +4,7 @@ import Observation
 /// 세션 실행 화면의 상태. 비즈니스 로직은 `WorkoutSession`/`SessionSet` 에 이미 있으므로,
 /// 여기서는 "지금 어느 세트에 초점이 있나"만 다룬다(F-3).
 @Observable
-public final class SessionRunner: Identifiable {
+public final class SessionRunner: Identifiable, Hashable {
     public var id: UUID { session.id }
     public private(set) var session: WorkoutSession
     public var focusedSet: SessionSet?
@@ -77,4 +77,7 @@ public final class SessionRunner: Identifiable {
     private func advanceFocus() {
         focusedSet = session.nextPendingSet
     }
+
+    public static func == (lhs: SessionRunner, rhs: SessionRunner) -> Bool { lhs.id == rhs.id }
+    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
