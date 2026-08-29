@@ -4,7 +4,10 @@ import WoofitCore
 
 /// P1 · 루틴 목록. 오늘 요일에 배정된 루틴을 위에 둔다(F-2).
 struct RoutineListView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Routine.updatedAt, order: .reverse) private var routines: [Routine]
+
+    @State private var pendingExport: MarkdownExport?
 
     private var today: Weekday { .today() }
 
@@ -21,12 +24,16 @@ struct RoutineListView: View {
             List {
                 if !todaysRoutines.isEmpty {
                     Section("오늘 · \(today.fullName)") {
-                        ForEach(todaysRoutines) { RoutineRow(routine: $0) }
+                        ForEach(todaysRoutines) { routine in
+                            RoutineRow(routine: routine, onExport: { export(routine) })
+                        }
                     }
                 }
                 if !otherRoutines.isEmpty {
                     Section(todaysRoutines.isEmpty ? "루틴" : "다른 루틴") {
-                        ForEach(otherRoutines) { RoutineRow(routine: $0) }
+                        ForEach(otherRoutines) { routine in
+                            RoutineRow(routine: routine, onExport: { export(routine) })
+                        }
                     }
                 }
             }
@@ -40,12 +47,23 @@ struct RoutineListView: View {
                     )
                 }
             }
+            .sheet(item: $pendingExport) { export in
+                MarkdownPreviewView(title: export.title, markdown: export.markdown)
+            }
         }
+    }
+
+    /// 루틴을 마크다운으로 내보낸다. `지난 기록` 열이 F-9의 주 전달 경로다.
+    private func export(_ routine: Routine) {
+        let lastRecords = (try? LastRecordLookup.fetchAll(for: routine, in: modelContext)) ?? [:]
+        let markdown = RoutineMarkdownExporter.export(routine, lastRecords: lastRecords)
+        pendingExport = MarkdownExport(title: "루틴 마크다운", markdown: markdown)
     }
 }
 
 private struct RoutineRow: View {
     let routine: Routine
+    let onExport: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -64,6 +82,10 @@ private struct RoutineRow: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
+        .swipeActions(edge: .trailing) {
+            Button("마크다운", systemImage: "doc.on.doc", action: onExport)
+                .tint(.accentColor)
+        }
     }
 }
 
