@@ -10,6 +10,7 @@ struct WatchFailureInputView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var actualReps: Double
     @State private var actualWeight: Double
+    @FocusState private var repsFocused: Bool
 
     init(set: SessionSet, onRecord: @escaping (Int, Double?) -> Void) {
         self.set = set
@@ -29,8 +30,17 @@ struct WatchFailureInputView: View {
                     .foregroundStyle(.secondary)
                 Text("\(Int(actualReps))회")
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .focusable()
-                    .digitalCrownRotation($actualReps, from: 0, through: repsUpperBound, by: 1)
+                    .focusable(true)
+                    .focused($repsFocused)
+                    .digitalCrownRotation(
+                        $actualReps,
+                        from: 0,
+                        through: repsUpperBound,
+                        by: 1,
+                        sensitivity: .low,
+                        isContinuous: false,
+                        isHapticFeedbackEnabled: true
+                    )
 
                 Stepper(value: $actualWeight, in: 0...max(set.targetWeight, actualWeight), step: 2.5) {
                     Text(WeightFormatter.string(actualWeight))
@@ -50,6 +60,7 @@ struct WatchFailureInputView: View {
             }
             .padding(.horizontal, 2)
         }
+        .onAppear { repsFocused = true }
     }
 }
 
