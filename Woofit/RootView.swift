@@ -17,6 +17,9 @@ struct RootView: View {
             Tab("기록", systemImage: "clock.arrow.circlepath") {
                 SessionHistoryView()
             }
+            Tab("설정", systemImage: "gearshape") {
+                SettingsView()
+            }
         }
         .environment(coordinator)
         .task {

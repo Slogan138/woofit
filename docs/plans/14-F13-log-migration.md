@@ -82,19 +82,22 @@
 
 ### 1단계 · 파서와 반영 (WoofitCore)
 
-- [ ] 1. `WorkoutSession.note` 추가 — 기본값 `""`
-- [ ] 2. `ParsedSession` · `ParsedLogEntry` — 값 타입. 미리보기가 이걸 그대로 보여준다
-- [ ] 3. `LegacyLogParser` — 원본 형식 → 값 타입 (순수 함수, `ModelContext` 를 받지 않는다)
-- [ ] 4. 변환 규칙 구현 — 위 표 그대로
-- [ ] 5. `ParsedSession` → SwiftData 반영. **같은 날짜를 두 번 넣지 않도록 멱등하게**
-- [ ] 6. 테스트 — 실제 파일의 대표 행으로
+- [x] 1. `WorkoutSession.note` 추가 — 기본값 `""`
+- [x] 2. `ParsedSession` · `ParsedLogEntry` — 값 타입. 미리보기가 이걸 그대로 보여준다
+- [x] 3. `LegacyLogParser` — 원본 형식 → 값 타입 (순수 함수, `ModelContext` 를 받지 않는다)
+- [x] 4. 변환 규칙 구현 — 위 표 그대로
+- [x] 5. `ParsedSession` → SwiftData 반영. **같은 날짜를 두 번 넣지 않도록 멱등하게**
+- [x] 6. 테스트 — 대표 행으로 (원본 `운동일지.md` 는 이 저장소 밖에 있어 접근할 수 없다.
+      계획 문서의 변환 규칙 표를 그대로 옮긴 합성 행으로 대신했다)
 
 ### 2단계 · P9 화면 (폰)
 
-- [ ] 7. `LogMigrationView` — 텍스트 붙여넣기 영역. 파일이 52KB 라 큰 입력을 감당해야 한다
-- [ ] 8. 미리보기 — 세션 수 · 종목 수 · 건너뛴 행과 그 이유
-- [ ] 9. 적용 — 이미 있는 날짜는 건너뛰고 몇 개를 새로 넣었는지 알린다
-- [ ] 10. 진입점 — 설정(P7) 안에 둔다. 일회성이라 평소 눈에 띄지 않아야 한다
+- [x] 7. `LogMigrationView` — 텍스트 붙여넣기 영역. 파일이 52KB 라 큰 입력을 감당해야 한다
+- [x] 8. 미리보기 — 세션 수 · 종목 수 · 건너뛴 행과 그 이유
+- [x] 9. 적용 — 이미 있는 날짜는 건너뛰고 몇 개를 새로 넣었는지 알린다. 확인 다이얼로그를 한 번 거친다
+- [x] 10. 진입점 — 설정(P7) 안에 둔다. 일회성이라 평소 눈에 띄지 않아야 한다.
+      **P7 자체가 아직 없어서 이번에 최소 상태로 신설했다** — 탭 하나에 이 항목만 있다.
+      마크다운 형식·카테고리 프리셋·증량 폭(F-6, F-11)은 그 기능과 함께 이 화면에 채워진다
 
 ## 파일
 
@@ -102,8 +105,12 @@
 | --- | --- |
 | `WoofitCore/Sources/WoofitCore/Migration/LegacyLogParser.swift` | 파싱·변환 |
 | `WoofitCore/Sources/WoofitCore/Migration/ParsedSession.swift` | 값 타입 |
+| `WoofitCore/Sources/WoofitCore/Migration/ParsedSession+Apply.swift` | `ParsedSession` → `WorkoutSession` 하나 반영 (`ParsedRoutine+Apply.swift` 와 같은 구조) |
+| `WoofitCore/Sources/WoofitCore/Migration/LegacyLogImporter.swift` | 여러 세션을 한 번에, 날짜 기준으로 멱등하게 반영 |
 | `WoofitCore/Tests/WoofitCoreTests/LegacyLogParserTests.swift` | 테스트 |
 | `Woofit/Features/Migration/LogMigrationView.swift` | P9 · 붙여넣기·미리보기·적용 |
+| `Woofit/Features/Settings/SettingsView.swift` | P7 · 최소 상태로 신설. 지금은 이 진입점 하나뿐 |
+| `Woofit/RootView.swift` | "설정" 탭 추가 |
 | `WoofitCore/Sources/WoofitCore/Model/WorkoutSession.swift` | `note` 추가 |
 
 ## 테스트 계획
