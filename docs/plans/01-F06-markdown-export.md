@@ -29,7 +29,7 @@
 - [x] 5. `RoutineMarkdownExporter` — 루틴 형식 + `지난 기록` 열
 - [x] 6. 테스트
 - [x] 7. 폰 UI — 미리보기 + `UIPasteboard` 복사
-- [ ] 8. `SessionDetailView` — 지난 세션 상세 (P6)
+- [x] 8. `SessionDetailView` — 지난 세션 상세 (P6)
 
 **8번은 뒤늦게 발견한 누락이다.** 요구사항 본문에 "세션 완료 화면과 **지난 세션 상세 화면**
 양쪽에 마크다운 복사를 둔다"라고 적혀 있고 PRD 화면 목록에도 P6 가 "전체 세션 **열람**"으로
@@ -59,7 +59,8 @@
 | `WoofitCore/Tests/WoofitCoreTests/MarkdownExportTests.swift` | 테스트 |
 | `Woofit/Features/Export/MarkdownPreviewView.swift` | 미리보기 + 복사 (P5) |
 | `Woofit/Features/Routine/RoutineListView.swift` | 스와이프 → 루틴 마크다운 내보내기 진입점 |
-| `Woofit/Features/Session/SessionHistoryView.swift` | 스와이프 → 세션 마크다운 재복사 진입점 (P6) |
+| `Woofit/Features/Session/SessionHistoryView.swift` | 목록 → 상세 화면 진입점 (P6) |
+| `Woofit/Features/Session/SessionDetailView.swift` | 지난 세션 상세 — 세트 목록 · 요약 · 마크다운 복사 (P6) |
 
 ## 설계 메모
 
