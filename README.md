@@ -77,13 +77,8 @@ xcodebuild build -scheme Woofit -destination 'generic/platform=iOS Simulator'
 
 ## 현재 상태
 
-M1 착수 전. 데이터 모델과 앱 셸까지 완료.
-
-- ✅ `WoofitCore` 모델 · 직전 기록 조회 · 표기 포맷터 (테스트 18개 통과)
-- ✅ Xcode 프로젝트 (iOS + watchOS 2타겟, 로컬 패키지 연결)
-- ⬜ M1 — 루틴 편집기, 세션 실행, 마크다운 내보내기·가져오기
-- ⬜ M2 — 워치, 휴식 측정, 폰↔워치 동기화
-- ⬜ M3 — 추이 그래프, 다음 무게 제안
+기능별 진행 상태는 [작업 계획](docs/plans/) 인덱스에 있다.
+두 곳에서 같은 상태를 관리하면 반드시 어긋나므로 여기에는 적지 않는다.
 
 ## 라이선스
 
