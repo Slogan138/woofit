@@ -9,6 +9,8 @@ struct RoutineListView: View {
 
     @State private var pendingExport: MarkdownExport?
     @State private var isImportPresented = false
+    @State private var newRoutineDraft: Routine?
+    @State private var editingRoutine: Routine?
 
     private var today: Weekday { .today() }
 
@@ -23,7 +25,13 @@ struct RoutineListView: View {
                     Section("오늘 · \(today.fullName)") {
                         ForEach(todaysRoutines) { routine in
                             NavigationLink(value: routine) {
-                                RoutineRow(routine: routine, onExport: { export(routine) })
+                                RoutineRow(
+                                    routine: routine,
+                                    onExport: { export(routine) },
+                                    onEdit: { editingRoutine = routine },
+                                    onDuplicate: { duplicate(routine) },
+                                    onDelete: { delete(routine) }
+                                )
                             }
                         }
                     }
@@ -32,7 +40,13 @@ struct RoutineListView: View {
                     Section(todaysRoutines.isEmpty ? "루틴" : "다른 루틴") {
                         ForEach(otherRoutines) { routine in
                             NavigationLink(value: routine) {
-                                RoutineRow(routine: routine, onExport: { export(routine) })
+                                RoutineRow(
+                                    routine: routine,
+                                    onExport: { export(routine) },
+                                    onEdit: { editingRoutine = routine },
+                                    onDuplicate: { duplicate(routine) },
+                                    onDelete: { delete(routine) }
+                                )
                             }
                         }
                     }
@@ -53,10 +67,19 @@ struct RoutineListView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isImportPresented = true
+                    Menu {
+                        Button {
+                            newRoutineDraft = Routine()
+                        } label: {
+                            Label("새 루틴", systemImage: "plus")
+                        }
+                        Button {
+                            isImportPresented = true
+                        } label: {
+                            Label("가져오기", systemImage: "square.and.arrow.down")
+                        }
                     } label: {
-                        Label("가져오기", systemImage: "square.and.arrow.down")
+                        Image(systemName: "plus")
                     }
                 }
             }
@@ -65,6 +88,16 @@ struct RoutineListView: View {
             }
             .sheet(isPresented: $isImportPresented) {
                 MarkdownImportView()
+            }
+            .sheet(item: $newRoutineDraft) { draft in
+                NavigationStack {
+                    RoutineEditorView(routine: draft, isNew: true)
+                }
+            }
+            .sheet(item: $editingRoutine) { routine in
+                NavigationStack {
+                    RoutineEditorView(routine: routine)
+                }
             }
         }
     }
@@ -75,11 +108,22 @@ struct RoutineListView: View {
         let markdown = RoutineMarkdownExporter.export(routine, lastRecords: lastRecords)
         pendingExport = MarkdownExport(title: "루틴 마크다운", markdown: markdown)
     }
+
+    private func duplicate(_ routine: Routine) {
+        modelContext.insert(routine.duplicate())
+    }
+
+    private func delete(_ routine: Routine) {
+        modelContext.delete(routine)
+    }
 }
 
 private struct RoutineRow: View {
     let routine: Routine
     let onExport: () -> Void
+    let onEdit: () -> Void
+    let onDuplicate: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -98,9 +142,18 @@ private struct RoutineRow: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
-        .swipeActions(edge: .trailing) {
+        // allowsFullSwipe: false — 안 그러면 끝까지 미는 동작(메일 앱 스와이프 삭제 습관)이
+        // 맨 앞 액션(삭제)을 확인 없이 바로 실행한다. 루틴은 이메일 한 통보다 훨씬 무겁다.
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("삭제", systemImage: "trash", role: .destructive, action: onDelete)
+            Button("복제", systemImage: "plus.square.on.square", action: onDuplicate)
+                .tint(.orange)
             Button("마크다운", systemImage: "doc.on.doc", action: onExport)
                 .tint(.accentColor)
+        }
+        .swipeActions(edge: .leading) {
+            Button("편집", systemImage: "pencil", action: onEdit)
+                .tint(.blue)
         }
     }
 }
