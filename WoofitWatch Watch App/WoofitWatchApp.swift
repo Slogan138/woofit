@@ -8,6 +8,7 @@ struct WoofitWatchApp: App {
     /// 워치는 폰의 캐시가 아니라 독립 저장소를 갖는다(PRD §8).
     private let container: ModelContainer
     private let syncService: WatchSyncService
+    private let workoutSessionController: WorkoutSessionController
 
     init() {
         do {
@@ -17,6 +18,7 @@ struct WoofitWatchApp: App {
         }
         syncService = WatchSyncService(container: container)
         syncService.activate()
+        workoutSessionController = WorkoutSessionController(healthSession: HealthKitWorkoutSession())
     }
 
     var body: some Scene {
@@ -25,5 +27,6 @@ struct WoofitWatchApp: App {
         }
         .modelContainer(container)
         .environment(\.watchSyncService, syncService)
+        .environment(\.workoutSessionController, workoutSessionController)
     }
 }

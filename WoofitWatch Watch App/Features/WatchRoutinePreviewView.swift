@@ -8,6 +8,7 @@ struct WatchRoutinePreviewView: View {
     let routine: Routine
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.workoutSessionController) private var workoutSessionController
     @State private var activeRunner: SessionRunner?
 
     var body: some View {
@@ -38,6 +39,8 @@ struct WatchRoutinePreviewView: View {
         }
     }
 
+    /// 여기가 워치에서 세션을 새로 시작하는 유일한 경로다 — 복원 경로가 따로 없으므로
+    /// `workoutSessionController.start()` 를 여기 한 곳에서만 부르면 유령 운동을 피할 수 있다(계획 17).
     private func start() {
         let session = WorkoutSession.start(from: routine)
         modelContext.insert(session)
@@ -45,6 +48,7 @@ struct WatchRoutinePreviewView: View {
             session: session,
             lastRecords: (try? LastRecordLookup.fetchAll(for: session, in: modelContext)) ?? [:]
         )
+        Task { await workoutSessionController?.start() }
     }
 }
 
