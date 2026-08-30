@@ -22,6 +22,7 @@ struct RoutineEditorView: View {
 
     @State private var weekdaySelection: Set<Weekday>
     @State private var lastRecords: [String: LastRecord] = [:]
+    @State private var weightSuggestions: [String: WeightSuggestion] = [:]
     @State private var suggestions: [ExerciseNameSuggester.Candidate] = []
     @State private var newExerciseName = ""
     @State private var emptyExerciseNames: [String] = []
@@ -43,6 +44,21 @@ struct RoutineEditorView: View {
             }
             Section("반복 요일") {
                 WeekdayPicker(selection: $weekdaySelection)
+            }
+
+            // 제안이 있을 때만 나타난다. 늘 자리를 차지하면 평소 편집에 방해가 된다.
+            if !pendingSuggestions.isEmpty {
+                Section("다음 무게 제안") {
+                    ForEach(pendingSuggestions, id: \.exercise.id) { pair in
+                        SuggestionRow(
+                            suggestion: pair.suggestion,
+                            plannedWeight: pair.plannedWeight
+                        ) {
+                            apply(pair.suggestion, to: pair.exercise)
+                        }
+                    }
+                    Button("모두 적용") { applyAllSuggestions() }
+                }
             }
 
             ForEach(routine.sortedExercises) { exercise in
@@ -93,6 +109,7 @@ struct RoutineEditorView: View {
         .onAppear {
             refreshLastRecords()
             suggestions = (try? ExerciseNameSuggester.suggest(in: modelContext)) ?? []
+            refreshSuggestions()
         }
         .onChange(of: weekdaySelection) { _, newValue in
             // 기존 루틴은 다른 필드처럼 요일도 즉시 반영한다 — "취소"가 없으므로
@@ -109,6 +126,37 @@ struct RoutineEditorView: View {
         } message: {
             Text("\(emptyExerciseNames.joined(separator: ", ")) 에 세트가 없습니다. 그대로 저장하면 마크다운으로 내보냈다 다시 가져올 때 이 종목이 사라집니다.")
         }
+    }
+
+    // MARK: - 다음 무게 제안 (F-11)
+
+    /// 지금 루틴에 적힌 무게보다 높은 제안만 보여준다. 이미 반영했거나 유지 제안이면
+    /// 줄을 만들지 않는다 — 할 일이 없는 줄은 소음이다.
+    private var pendingSuggestions: [(exercise: PlannedExercise, suggestion: WeightSuggestion, plannedWeight: Double)] {
+        routine.sortedExercises.compactMap { exercise in
+            guard let suggestion = weightSuggestions[exercise.normalizedName],
+                  let planned = exercise.sortedSets.map(\.targetWeight).max(),
+                  suggestion.suggestedWeight > planned
+            else { return nil }
+            return (exercise, suggestion, planned)
+        }
+    }
+
+    private func apply(_ suggestion: WeightSuggestion, to exercise: PlannedExercise) {
+        SuggestionApplier.apply(suggestion, to: exercise)
+    }
+
+    private func applyAllSuggestions() {
+        for pair in pendingSuggestions {
+            SuggestionApplier.apply(pair.suggestion, to: pair.exercise)
+        }
+    }
+
+    private func refreshSuggestions() {
+        guard let sessions = try? modelContext.fetch(FetchDescriptor<WorkoutSession>()) else { return }
+        weightSuggestions = Dictionary(
+            uniqueKeysWithValues: ProgressionRule.suggestAll(in: sessions).map { ($0.normalizedName, $0) }
+        )
     }
 
     // MARK: - 종목 추가·이동·삭제
