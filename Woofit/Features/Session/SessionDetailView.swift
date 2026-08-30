@@ -54,9 +54,11 @@ struct SessionDetailView: View {
             isPresented: $isDeleteConfirmationPresented,
             titleVisibility: .visible
         ) {
+            // 화면을 먼저 닫는다. 순서가 반대면 닫히는 동안 이미 지워진 객체를 렌더한다
+            // (`DeferredSessionDeletion`).
             Button("삭제", role: .destructive) {
-                try? SessionDeletion.delete(session, in: modelContext)
                 dismiss()
+                DeferredSessionDeletion.delete(session, in: modelContext)
             }
             Button("취소", role: .cancel) {}
         } message: {

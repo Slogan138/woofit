@@ -142,13 +142,21 @@ dismiss()
 
 ## 작업 단위
 
-- [ ] 1. 목록 — 다이얼로그를 먼저 닫고, 닫힘이 끝난 뒤 삭제한다
-- [ ] 2. 삭제를 `withAnimation` 안에서 한다
-- [ ] 3. `confirmationDialog(_:isPresented:presenting:)` 로 바꾼다 (자체 Binding 제거)
-- [ ] 4. `byMonth` 재계산을 줄인다. `@Query` 가 이미 정렬해 주므로 안쪽 `sorted` 는 뺀다
+- [x] 1. 목록 — 다이얼로그를 먼저 닫고, 닫힘이 끝난 뒤 삭제한다
+- [x] 2. 삭제를 `withAnimation` 안에서 한다
+- [x] 3. `confirmationDialog(_:isPresented:presenting:)` 로 바꾼다 (자체 Binding 제거)
+- [x] 4. `byMonth` 재계산을 줄인다. `@Query` 가 이미 정렬해 주므로 안쪽 `sorted` 는 뺀다
       — **정렬 보장이 호출자에게 넘어가므로 주석으로 남긴다**
-- [ ] 5. 상세 — `dismiss()` 를 먼저, 삭제를 나중에
-- [ ] 6. `SessionHistoryGrouping` 테스트가 여전히 통과하는지 확인 (4번이 Core 를 건드린다)
+- [x] 5. 상세 — `dismiss()` 를 먼저, 삭제를 나중에
+- [x] 6. `SessionHistoryGrouping` 테스트가 여전히 통과하는지 확인 (4번이 Core 를 건드린다)
+
+1·5 는 같은 문제라 `DeferredSessionDeletion` 하나로 처리했다. SwiftUI 가 전환 완료
+콜백을 주지 않으므로 **표준 애니메이션 길이만큼 기다렸다가** `withAnimation` 안에서
+지운다. 뷰가 사라진 뒤에도 삭제는 끝나야 하므로 구조화되지 않은 `Task` 를 쓴다.
+
+**6 은 "그대로 통과"가 아니었다.** 4번이 정렬 계약을 호출자에게 넘기므로, 뒤섞인
+입력을 넣고 정렬된 출력을 기대하던 기존 테스트의 전제가 사라진다. 입력을 최신순으로
+바꾸고, 바뀐 계약(`묶음 순서는 입력 순서를 그대로 따른다`)을 고정하는 테스트를 더했다.
 
 ## 검증
 

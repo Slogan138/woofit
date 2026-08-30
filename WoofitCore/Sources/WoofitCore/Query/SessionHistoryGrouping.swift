@@ -15,6 +15,10 @@ public struct SessionMonth: Identifiable {
 public enum SessionHistoryGrouping {
     /// 최신 월이 먼저, 월 안에서도 최신 세션이 먼저다.
     ///
+    /// **입력이 이미 최신순이라고 전제한다.** 호출부의 `@Query(sort:order:)` 가 정렬해서 주는데
+    /// 여기서 또 정렬하면 목록이 다시 그려질 때마다 그 비용을 낸다. 대신 정렬 보장이
+    /// 호출자에게 넘어가므로, 뒤섞인 배열을 넘기면 묶음 순서도 그대로 뒤섞인다.
+    ///
     /// 묶음 기준에 **연도를 함께 넣는다.** 월만 쓰면 작년 8월과 올해 8월이 한 묶음이 되는데,
     /// 세션이 몇 년치 쌓인 뒤에야 드러나는 종류의 오류라 조용히 지나간다.
     public static func byMonth(
@@ -24,7 +28,7 @@ public enum SessionHistoryGrouping {
         var order: [String] = []
         var buckets: [String: [WorkoutSession]] = [:]
 
-        for session in sessions.sorted(by: { $0.startedAt > $1.startedAt }) {
+        for session in sessions {
             let parts = calendar.dateComponents([.year, .month], from: session.startedAt)
             guard let year = parts.year, let month = parts.month else { continue }
             let key = String(format: "%04d-%02d", year, month)

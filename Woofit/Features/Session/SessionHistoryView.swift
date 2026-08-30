@@ -12,10 +12,12 @@ struct SessionHistoryView: View {
     @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
 
     @State private var pendingDeletion: WorkoutSession?
+    @State private var isDeleteConfirmationPresented = false
 
     var body: some View {
         NavigationStack {
             List {
+                // `@Query` 가 이미 최신순으로 주므로 `byMonth` 는 다시 정렬하지 않는다.
                 ForEach(SessionHistoryGrouping.byMonth(sessions)) { month in
                     Section(month.title) {
                         ForEach(month.sessions) { session in
@@ -27,6 +29,7 @@ struct SessionHistoryView: View {
                                 if session.isDeletable {
                                     Button("삭제", systemImage: "trash", role: .destructive) {
                                         pendingDeletion = session
+                                        isDeleteConfirmationPresented = true
                                     }
                                 }
                             }
@@ -49,27 +52,19 @@ struct SessionHistoryView: View {
             }
             .confirmationDialog(
                 "이 기록을 삭제하시겠습니까?",
-                isPresented: Binding(
-                    get: { pendingDeletion != nil },
-                    set: { isPresented in if !isPresented { pendingDeletion = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
+                isPresented: $isDeleteConfirmationPresented,
+                titleVisibility: .visible,
+                presenting: pendingDeletion
+            ) { session in
+                // 닫힘 애니메이션과 겹치지 않게 미뤄 지운다(`DeferredSessionDeletion`).
                 Button("삭제", role: .destructive) {
-                    if let session = pendingDeletion {
-                        delete(session)
-                    }
-                    pendingDeletion = nil
+                    DeferredSessionDeletion.delete(session, in: modelContext)
                 }
-                Button("취소", role: .cancel) { pendingDeletion = nil }
-            } message: {
+                Button("취소", role: .cancel) {}
+            } message: { _ in
                 Text("마크다운으로 옮기지 않았다면 이 운동 기록이 사라집니다. 되돌릴 수 없습니다.")
             }
         }
-    }
-
-    private func delete(_ session: WorkoutSession) {
-        try? SessionDeletion.delete(session, in: modelContext)
     }
 }
 
