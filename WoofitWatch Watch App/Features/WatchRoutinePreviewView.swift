@@ -48,7 +48,11 @@ struct WatchRoutinePreviewView: View {
             session: session,
             lastRecords: (try? LastRecordLookup.fetchAll(for: session, in: modelContext)) ?? [:]
         )
-        Task { await workoutSessionController?.start() }
+        // 기록할 세트가 없으면 SessionRunner 가 생성 즉시 finished 라 phase 가 변하지 않고,
+        // 종료를 부르는 onChange 가 영영 안 터진다 — 시작하지 않는 것으로 막는다(계획 17).
+        if session.hasRecordableSets {
+            Task { await workoutSessionController?.start() }
+        }
     }
 }
 

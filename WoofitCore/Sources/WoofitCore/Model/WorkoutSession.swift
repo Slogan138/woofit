@@ -101,6 +101,10 @@ public extension WorkoutSession {
 
     var totalSetCount: Int { allSets.count }
 
+    /// 기록할 세트가 하나도 없는 세션. 운동 세션(F-14)을 시작할 이유가 없다.
+    /// 이 판단을 화면에 두면 `swift test` 가 닿지 않는다 — 실제로 그래서 놓쳤다(계획 17).
+    var hasRecordableSets: Bool { totalSetCount > 0 }
+
     var recordedSetCount: Int { allSets.count { $0.result.isRecorded } }
 
     var successSetCount: Int { allSets.count { $0.result == .success } }
