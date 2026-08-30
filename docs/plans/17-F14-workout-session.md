@@ -124,9 +124,23 @@ HealthKit 자체는 시뮬레이터 없이 검증할 수 없다. **검증 가능
 다르다. `GENERATE_INFOPLIST_FILE = YES` 이므로 권한 문구는 `INFOPLIST_KEY_*` 로 들어가고,
 그건 pbxproj 안에 있다. 디버그·릴리즈 두 구성 모두에 넣어야 한다.
 
-**무료 계정에서 HealthKit capability 가 켜지는지 먼저 확인한다.** CloudKit 은 유료가
-필요했다(D5). HealthKit 도 그렇다면 이 작업은 유료 등록에 묶인다. **1단계 착수 전에
-확인할 것** — 묶인다면 계획을 다시 짜야 한다.
+**무료 계정에서 HealthKit 이 켜지는 것을 확인했다(2026-08-30).** CloudKit 은 유료가
+필요했으므로(D5) 같은 제약이 있는지 착수 전에 확인했는데, 개인 팀에도 발급된다.
+워크트리에서 entitlement 만 붙여 워치 타겟을 빌드해 확인한 결과다.
+
+```
+$ codesign -d --entitlements :- "WoofitWatch Watch App.app"
+    com.apple.developer.healthkit = true
+
+$ security cms -D -i embedded.mobileprovision   # 애플이 발급한 프로파일
+    com.apple.developer.healthkit                   = true
+    com.apple.developer.healthkit.access            = []
+    com.apple.developer.healthkit.background-delivery = true
+```
+
+**프로파일에 있다고 Info.plist 가 필요 없는 것은 아니다.** entitlement 는 권한이고,
+`WKBackgroundModes` 의 `workout-processing` 과 `NSHealthUpdateUsageDescription` 은
+따로 넣어야 한다(작업 단위 9).
 
 **종료를 빠뜨리면 조용히 배터리를 먹는다.** 화면에는 아무 문제가 없어 보이고 며칠 뒤
 "워치 배터리가 빨리 닳는다" 로만 드러난다. 중단(`abandon`) 경로를 특히 확인한다 —
