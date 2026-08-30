@@ -16,6 +16,10 @@ struct WatchRoutinePreviewView: View {
             if !routine.sortedExercises.isEmpty {
                 Button("시작", action: start)
                     .buttonStyle(.borderedProminent)
+                    // 워치 List 행은 자체 배경 컨테이너를 그린다. 버튼을 그대로 넣으면
+                    // 버튼 모양이 행 테두리에 한 번 더 감싸여 이중으로 보인다.
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
             }
 
             if routine.isScheduled {
