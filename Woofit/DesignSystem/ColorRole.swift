@@ -13,4 +13,17 @@ enum ColorRole {
     /// 휴식 타이머 표시. 루틴 복제 스와이프와 같은 주황을 썼던 문제(디자인 토큰
     /// 계획 ③)를 없애기 위해 이 역할에만 쓴다.
     static let rest = Color.orange
+
+    /// 배경보다 한 단계 떠 보여야 하는 면(세션 실행의 현재 세트 카드 등).
+    /// 그림자를 직접 그리지 않고 시스템 배경 층을 쓴다 — 라이트·다크 양쪽 대비를
+    /// 애플이 정한 대로 따라간다.
+    static let cardSurface = Color(.secondarySystemBackground)
+
+    /// 진행 표시에만 쓰는 인디고→바이올렛 램프. 브랜드 색이 그라디언트로 드러나는
+    /// 유일한 자리다 — 버튼과 텍스트는 단색 `accent` 를 쓴다(계획 15).
+    static let progress = LinearGradient(
+        colors: [accent, Color("BrandViolet")],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
 }

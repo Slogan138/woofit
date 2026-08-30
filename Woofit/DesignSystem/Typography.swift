@@ -20,4 +20,17 @@ enum Typography {
 
     /// 보조 설명 — 부가 정보, 캡션. `.caption`·`.caption2` 가 뒤섞여 있던 걸 하나로 모은다.
     static let secondary = Font.caption
+
+    /// 세션 실행 화면의 현재 세트 판독값 기준 크기(계획 15).
+    ///
+    /// 다른 토큰과 달리 포인트 값인 것은, 텍스트 스타일 중 가장 큰 `.largeTitle`(34pt)도
+    /// 벤치에 폰을 세워둔 거리에서는 작기 때문이다. **반드시 `@ScaledMetric(relativeTo:
+    /// .largeTitle)` 로 감싸 쓴다** — 그대로 넣으면 Dynamic Type 이 깨진다(PRD §9).
+    static let heroMetricSize: CGFloat = 56
+
+    /// `heroMetricSize` 를 `@ScaledMetric` 으로 환산한 값을 받아 폰트를 만든다.
+    /// `.rounded` 인 것은 획이 굵고 자간이 넓어 멀리서 숫자 판독이 쉬워서다.
+    static func heroMetric(_ scaledSize: CGFloat) -> Font {
+        .system(size: scaledSize, weight: .bold, design: .rounded)
+    }
 }
