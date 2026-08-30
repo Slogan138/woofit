@@ -15,6 +15,16 @@ public enum ExerciseName {
             .lowercased()
     }
 
+    /// 보조 기구 종목 표시. 가져오기(F-13)가 `65kg 보조` 를 만나면 이름에 이걸 붙인다.
+    ///
+    /// 보조 중량은 **줄수록** 향상이라 무게·볼륨의 해석 방향이 뒤집힌다.
+    /// 표시가 이름 안에 있어야 추이(F-10)가 그 종목을 알아보고 그리지 않을 수 있다.
+    public static let assistedMarker = "(보조)"
+
+    public static func isAssisted(_ name: String) -> Bool {
+        name.contains(assistedMarker)
+    }
+
     /// 표시용 정리. 앞뒤 공백만 털어낸다. 사용자가 적은 표기를 그대로 존중한다.
     public static func display(_ raw: String) -> String {
         raw.trimmingCharacters(in: .whitespacesAndNewlines)

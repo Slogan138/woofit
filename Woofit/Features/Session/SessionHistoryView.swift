@@ -45,6 +45,16 @@ struct SessionHistoryView: View {
             .navigationDestination(for: WorkoutSession.self) { session in
                 SessionDetailView(session: session)
             }
+            // 추이(P8)는 기록 탭 안에서 들어간다. 탭을 새로 늘리지 않는다(계획 10).
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        ExerciseListView()
+                    } label: {
+                        Label("종목별 추이", systemImage: "chart.xyaxis.line")
+                    }
+                }
+            }
             .overlay {
                 if sessions.isEmpty {
                     ContentUnavailableView(
