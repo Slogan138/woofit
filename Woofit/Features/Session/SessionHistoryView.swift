@@ -27,10 +27,14 @@ struct SessionHistoryView: View {
                             // 진행 중 세션은 먼저 중단해야 지울 수 있으므로 액션 자체를 숨긴다(F-12, D7).
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 if session.isDeletable {
-                                    Button("삭제", systemImage: "trash", role: .destructive) {
+                                    // `role: .destructive` 를 쓰지 않는다 — 스와이프 액션에서 그 역할은
+                                    // "누르면 이 행이 없어진다"는 신호라, 확인을 받기도 전에 행이 접혔다가
+                                    // 되돌아온다. 색만 입혀 같은 모양을 유지한다(F-12).
+                                    Button("삭제", systemImage: "trash") {
                                         pendingDeletion = session
                                         isDeleteConfirmationPresented = true
                                     }
+                                    .tint(.red)
                                 }
                             }
                         }
