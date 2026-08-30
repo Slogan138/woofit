@@ -351,6 +351,46 @@ func lastRecordIsNilForNewExercise() throws {
     #expect(record == nil)
 }
 
+@Test("목표 대비 증감은 지난번에 가장 무겁게 든 무게를 기준으로 한다")
+func weightDeltaUsesTopWeight() {
+    // 마지막 세트에서 무게를 낮춰 수행했어도 기준은 그날의 최고 무게(80kg)다.
+    let record = LastRecord(
+        normalizedName: "벤치프레스",
+        displayName: "벤치프레스",
+        performedAt: Date(),
+        entries: [
+            .init(weight: 80, targetReps: 5, performedReps: 5, result: .success),
+            .init(weight: 80, targetReps: 5, performedReps: 5, result: .success),
+            .init(weight: 70, targetReps: 5, performedReps: 3, result: .failure)
+        ]
+    )
+
+    #expect(record.weightDelta(toTarget: 82.5) == 2.5)
+    #expect(record.weightDelta(toTarget: 80) == 0)
+    #expect(record.weightDelta(toTarget: 75) == -5)
+}
+
+@Test("맨몸 운동은 목표 대비 증감을 계산하지 않는다")
+func weightDeltaIsNilForBodyweight() {
+    let bodyweight = LastRecord(
+        normalizedName: "풀업",
+        displayName: "풀업",
+        performedAt: Date(),
+        entries: [.init(weight: 0, targetReps: 10, performedReps: 10, result: .success)]
+    )
+    #expect(bodyweight.weightDelta(toTarget: 0) == nil)
+    // 한쪽만 맨몸인 경우도 비교하지 않는다 — 0kg 에서 5kg 은 증감이 아니라 종류가 다른 운동이다.
+    #expect(bodyweight.weightDelta(toTarget: 5) == nil)
+
+    let weighted = LastRecord(
+        normalizedName: "풀업",
+        displayName: "풀업",
+        performedAt: Date(),
+        entries: [.init(weight: 5, targetReps: 10, performedReps: 10, result: .success)]
+    )
+    #expect(weighted.weightDelta(toTarget: 0) == nil)
+}
+
 // MARK: - 표기 (§6.4)
 
 @Test("무게 표기는 필요할 때만 소수점을 붙인다")
@@ -359,6 +399,14 @@ func weightFormatting() {
     #expect(WeightFormatter.string(22.5) == "22.5kg")
     #expect(WeightFormatter.string(0) == "맨몸")
     #expect(WeightFormatter.target(weight: 80, reps: 5) == "80kg × 5")
+}
+
+@Test("증감 표기는 부호를 붙이고 차이가 없으면 유지로 적는다")
+func deltaFormatting() {
+    #expect(WeightFormatter.delta(2.5) == "+2.5kg")
+    #expect(WeightFormatter.delta(5) == "+5kg")
+    #expect(WeightFormatter.delta(-5) == "-5kg")
+    #expect(WeightFormatter.delta(0) == "유지")
 }
 
 @Test("휴식과 소요 시간 표기")

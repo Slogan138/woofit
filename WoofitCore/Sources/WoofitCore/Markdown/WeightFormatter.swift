@@ -25,6 +25,14 @@ public enum WeightFormatter {
         return "\(lowLabel)~\(string(high)) × \(reps)"
     }
 
+    /// 직전 기록 대비 증감. `+2.5kg`, `-5kg`, 차이가 없으면 `유지`(F-9).
+    /// 부호를 붙여야 하므로 `string(_:)` 을 그대로 쓸 수 없다 — 0 을 `맨몸` 으로
+    /// 표기하는 규칙도 여기서는 뜻이 다르다.
+    public static func delta(_ delta: Double) -> String {
+        guard delta != 0 else { return "유지" }
+        return (delta > 0 ? "+" : "-") + string(abs(delta))
+    }
+
     /// `2'30"` 형태. 마크다운 `휴식` 열.
     public static func rest(_ seconds: Double) -> String {
         let total = Int(seconds.rounded())

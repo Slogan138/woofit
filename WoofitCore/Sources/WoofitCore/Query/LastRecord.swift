@@ -67,6 +67,19 @@ public extension LastRecord {
         return "\(weightPart) \(marks.joined(separator: separator)) · \(LastRecord.dateFormatter.string(from: performedAt))"
     }
 
+    /// 이번 목표 무게가 직전 기록보다 얼마나 늘었나(F-9). 늘었으면 양수, 줄였으면 음수.
+    ///
+    /// 비교 기준이 `topWeight` 인 것은 판단이 "지난번에 든 것보다 올렸는가"이기 때문이다.
+    /// 마지막 세트만 실패해 무게를 낮춰 수행했더라도 기준은 그날 가장 무겁게 든 값이다.
+    /// 맨몸 운동(0kg)은 무게 비교가 뜻을 갖지 않으므로 `nil` 이다.
+    ///
+    /// 다음에 얼마를 들지 **제안하지 않는다** — 그건 F-11 이고 M3 다. 여기서는 이미 있는
+    /// 두 값의 차이를 보여줄 뿐이다.
+    func weightDelta(toTarget target: Double) -> Double? {
+        guard topWeight > 0, target > 0 else { return nil }
+        return target - topWeight
+    }
+
     /// 워치처럼 폭이 좁은 화면용. 첫 세트 목표와 전체 성공 여부만 압축한다.
     /// 예: `지난번 80kg × 5 ✅`
     var compactSummary: String {
