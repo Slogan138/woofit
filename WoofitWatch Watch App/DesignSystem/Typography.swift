@@ -14,4 +14,17 @@ enum Typography {
     /// 보조 설명. `.caption`·`.caption2` 가 뒤섞여 있던 걸 워치에서 더 널리 쓰이던
     /// `.caption2` 하나로 모은다.
     static let secondary = Font.caption2
+
+    /// 세션 실행 화면의 현재 세트 판독값 기준 크기(계획 18).
+    ///
+    /// 폰의 56pt 를 그대로 쓰지 않는다 — 41mm 에서는 무게 한 줄이 화면을 다 먹어
+    /// 성공·실패 버튼이 첫 화면 밖으로 밀린다. **반드시 `@ScaledMetric(relativeTo:
+    /// .largeTitle)` 로 감싸 쓴다** — 그대로 넣으면 Dynamic Type 이 깨진다(PRD §9).
+    static let heroMetricSize: CGFloat = 36
+
+    /// `heroMetricSize` 를 `@ScaledMetric` 으로 환산한 값을 받아 폰트를 만든다.
+    /// `.rounded` 인 것은 획이 굵고 자간이 넓어 팔 뻗은 거리에서 숫자 판독이 쉬워서다.
+    static func heroMetric(_ scaledSize: CGFloat) -> Font {
+        .system(size: scaledSize, weight: .bold, design: .rounded)
+    }
 }
