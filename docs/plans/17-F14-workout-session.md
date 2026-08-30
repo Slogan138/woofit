@@ -72,27 +72,41 @@ Package.swift 의 `.macOS(.v26)` 이 그대로 유지된다.
 
 ### 1단계 · 컨트롤러 (WoofitCore)
 
-- [ ] 1. `WorkoutSessionController` — `start()` · `end()`. `#if os(watchOS)` 로 감싼다
-- [ ] 2. 권한 요청 — 쓰기 권한만(`workoutType`). 읽기는 요청하지 않는다
-- [ ] 3. `HKWorkoutBuilder` 로 세션 저장 — `traditionalStrengthTraining`, 실내
-- [ ] 4. 실패 기록 — `lastError` 와 `os.Logger`. `WatchSyncService` 와 같은 모양
-- [ ] 5. 권한 없음·시작 실패를 구분해 남긴다. 둘 다 "그냥 안 됨" 이 되면 원인을 못 찾는다
+- [x] 1. `WorkoutSessionController` — `start()` · `end()`.
+      **계획 수정**: HealthKit 의존을 `WorkoutHealthSession` 프로토콜로 뽑아 컨트롤러
+      자체는 플랫폼 무관으로 둔다. 원안대로 `#if os(watchOS)` 로 파일 전체를 감싸면
+      테스트 계획의 4개 항목이 `swift test` 로 못 돈다(원칙 3). HealthKit 을 실제로
+      쓰는 구현체(`HealthKitWorkoutSession`)만 `#if os(watchOS)` 로 감싼다
+- [x] 2. 권한 요청 — 쓰기 권한만(`workoutType`). 읽기는 요청하지 않는다
+- [x] 3. `HKWorkoutBuilder` 로 세션 저장 — `traditionalStrengthTraining`, 실내
+- [x] 4. 실패 기록 — `lastError` 와 `os.Logger`. `WatchSyncService` 와 같은 모양
+- [x] 5. 권한 없음·시작 실패를 구분해 남긴다. 둘 다 "그냥 안 됨" 이 되면 원인을 못 찾는다
 
 ### 2단계 · 배선 (워치 앱)
 
-- [ ] 6. 세션 시작 지점에서 `start()` — `WatchRootView` 의 시작 경로
-- [ ] 7. 완료·중단 지점에서 `end()` — 두 경로 모두. 하나라도 빠지면 배터리를 먹는다
-- [ ] 8. 복원 경로에서는 시작하지 않는다
-- [ ] 9. 빌드 설정 — `INFOPLIST_KEY_NSHealthUpdateUsageDescription`,
-      워치 타겟 백그라운드 모드. **여기서 `project.pbxproj` 가 바뀐다**(아래 주의점)
+- [x] 6. 세션 시작 지점에서 `start()` — `WatchRoutinePreviewView.start()` (실제 시작 경로.
+      `WatchRootView` 는 목록만 보여준다)
+- [x] 7. 완료·중단 지점에서 `end()` — `WatchSetView.finishSession()` 하나로 완료·중단
+      두 경로가 이미 합류하므로 거기 한 번만 추가했다
+- [x] 8. 복원 경로에서는 시작하지 않는다 — **현재 워치 앱에는 복원 경로 자체가 없다**
+      (독립 저장소이고 `WatchRootView` 는 진행 중 세션을 되살리지 않는다). 그래서
+      할 일은 "만들지 않는다": `start()` 호출을 `WatchRoutinePreviewView.start()`
+      단 한 곳에만 두고, 다른 어떤 지점에서도 호출하지 않았다
+- [x] 9. 빌드 설정 — `INFOPLIST_KEY_NSHealthUpdateUsageDescription`,
+      `INFOPLIST_KEY_WKBackgroundModes = "workout-processing"`,
+      `CODE_SIGN_ENTITLEMENTS`(`WoofitWatch Watch App.entitlements` 신설,
+      `com.apple.developer.healthkit`). Debug·Release 두 구성 모두 반영
 
 ## 파일
 
 | 경로 | 내용 |
 | --- | --- |
-| `WoofitCore/Sources/WoofitCore/Health/WorkoutSessionController.swift` | 세션 수명·권한·저장 |
+| `WoofitCore/Sources/WoofitCore/Health/WorkoutSessionController.swift` | 세션 수명·권한 실패 상태 머신 (플랫폼 무관) |
+| `WoofitCore/Sources/WoofitCore/Health/HealthKitWorkoutSession.swift` | `HKWorkoutSession`/`HKLiveWorkoutBuilder` 실제 구현 (`#if os(watchOS)`) |
 | `WoofitCore/Tests/WoofitCoreTests/WorkoutSessionControllerTests.swift` | 상태 전이 테스트 |
-| `WoofitWatch Watch App/WatchRootView.swift` | 시작·종료 배선 |
+| `WoofitWatch Watch App/WoofitWatchApp.swift` | 컨트롤러 생성·환경 주입 |
+| `WoofitWatch Watch App/Features/WatchRoutinePreviewView.swift` | 시작 배선 |
+| `WoofitWatch Watch App/Features/WatchSetView.swift` | 완료·중단 배선 |
 | `Woofit.xcodeproj/project.pbxproj` | 권한 문구·백그라운드 모드 |
 
 ## 테스트 계획
@@ -110,12 +124,18 @@ HealthKit 자체는 시뮬레이터 없이 검증할 수 없다. **검증 가능
 
 ## 완료 기준
 
-1. `swift test` 통과 · `xcodebuild build` 통과
-2. **워치에서 세션을 시작하고 손목을 내린 뒤 2분 후 들어 올렸을 때, 시계 화면이
-   아니라 실행 중이던 세트 화면이 그대로 보인다** (PRD 수용 기준)
-3. 세션을 끝낸 뒤 건강 앱 · 활동 링에 근력 운동이 남는다
-4. 권한을 거부한 상태에서도 세트 기록·휴식 측정·마크다운 내보내기가 모두 동작한다
-5. 세션 종료 후 워치 배터리가 계속 닳지 않는다 (운동 세션이 남아 있지 않다)
+1. [x] `swift test` 통과 · `xcodebuild build` 통과
+2. [x] **워치에서 세션을 시작하고 손목을 내린 뒤 2분 후 들어 올렸을 때, 시계 화면이
+   아니라 실행 중이던 세트 화면이 그대로 보인다** (PRD 수용 기준) — 실기기로 확인함(2026-08-30)
+3. [x] 세션을 끝낸 뒤 건강 앱 · 활동 링에 근력 운동이 남는다 — 실기기로 확인함(2026-08-30).
+   최초 확인 때 시작·종료 시각이 실제와 안 맞는 문제가 있었는데, `start()`·`end()` 가
+   워치 화면 두 곳에서 각자 별도 `Task` 로 fire-and-forget 되어 순서가 보장되지 않던
+   레이스가 원인으로 보인다(`WorkoutSessionController.end()` 가 진행 중인 `start()` 를
+   기다리지 않고 조용히 무시). `end()` 가 진행 중인 시작을 먼저 기다리도록 고치고
+   회귀 테스트를 추가한 뒤 재확인 — 시작·종료 시각이 실제 탭 시점과 일치함을 확인했다
+   (2026-08-30)
+4. [x] 권한을 거부한 상태에서도 세트 기록·휴식 측정·마크다운 내보내기가 모두 동작한다 — 실기기로 확인함(2026-08-30)
+5. [x] 세션 종료 후 워치 배터리가 계속 닳지 않는다 (운동 세션이 남아 있지 않다) — 실기기로 확인함(2026-08-30)
 
 ## 주의점
 

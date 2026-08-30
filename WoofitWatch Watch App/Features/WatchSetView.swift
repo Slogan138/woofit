@@ -9,6 +9,7 @@ struct WatchSetView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.watchSyncService) private var syncService
+    @Environment(\.workoutSessionController) private var workoutSessionController
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
 
@@ -74,9 +75,12 @@ struct WatchSetView: View {
     }
 
     /// 세션 종료 스냅샷을 보내 세트별 전송 유실을 복구하고, 워치 저장소를 정리한다(F-8).
+    /// 완료(`finished` phase)·중단(`abandon`) 두 경로 모두 여기를 거치므로, 운동 세션
+    /// 종료(`workoutSessionController.end()`)도 이 한 곳에서만 부르면 빠뜨릴 일이 없다(계획 17).
     private func finishSession() {
         try? syncService?.sendSessionSnapshot(SessionSnapshotPayload.make(for: runner.session))
         try? WatchRetention.prune(in: modelContext)
+        Task { await workoutSessionController?.end() }
     }
 
     @ViewBuilder
