@@ -151,8 +151,8 @@ private func parseRow(
 
     // 어시스트 머신은 무게가 클수록 쉬워져 추이 해석이 뒤집힌다. 종목명에 표시를 남긴다.
     var name = rawName
-    if weightInfo.isAssisted, !name.contains("(보조)") {
-        name += " (보조)"
+    if weightInfo.isAssisted, !ExerciseName.isAssisted(name) {
+        name += " \(ExerciseName.assistedMarker)"
     }
 
     let rawNote = noteIndex.map { stripBold(cell(row, at: $0)).trimmingCharacters(in: .whitespaces) }
