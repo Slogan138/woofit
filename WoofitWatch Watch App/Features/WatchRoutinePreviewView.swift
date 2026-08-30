@@ -18,8 +18,9 @@ struct WatchRoutinePreviewView: View {
                     .buttonStyle(.borderedProminent)
                     // 워치 List 행은 자체 배경 컨테이너를 그린다. 버튼을 그대로 넣으면
                     // 버튼 모양이 행 테두리에 한 번 더 감싸여 이중으로 보인다.
+                    // 배경만 지운다 — listRowInsets 까지 없애면 행이 넓어지는데 버튼은
+                    // 고유 너비를 유지해 왼쪽으로 치우친다.
                     .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
             }
 
             if routine.isScheduled {
