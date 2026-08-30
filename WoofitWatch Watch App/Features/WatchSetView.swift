@@ -17,6 +17,8 @@ struct WatchSetView: View {
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
     @State private var recordFeedback = RecordFeedback()
+    /// 종료 처리를 한 번으로 묶는다. 아래 `finishSession()` 참고.
+    @State private var didFinishSession = false
 
     @ScaledMetric(relativeTo: .largeTitle) private var metricSize = Typography.heroMetricSize
 
@@ -90,6 +92,14 @@ struct WatchSetView: View {
     /// 완료(`finished` phase)·중단(`abandon`) 두 경로 모두 여기를 거치므로, 운동 세션
     /// 종료(`workoutSessionController.end()`)도 이 한 곳에서만 부르면 빠뜨릴 일이 없다(계획 17).
     private func finishSession() {
+        // 완료 경로에서는 `onChange(of: phase)` 와 「완료」 버튼이 둘 다 여기를 거친다.
+        // 막지 않으면 세션마다 스냅샷이 두 번 전송된다 — `transferUserInfo` 는 큐에 쌓여
+        // 보장 전송되므로 실제로 두 번 나간다. 반대로 「완료」 쪽을 빼면 빈 세션이
+        // 깨진다. 빈 세션은 phase 가 변하지 않아 `onChange` 가 터지지 않고, 그때는
+        // 「완료」가 유일한 경로다(계획 17).
+        guard !didFinishSession else { return }
+        didFinishSession = true
+
         try? syncService?.sendSessionSnapshot(SessionSnapshotPayload.make(for: runner.session))
         try? WatchRetention.prune(in: modelContext)
         Task { await workoutSessionController?.end() }
@@ -209,8 +219,8 @@ struct WatchSetView: View {
                 .font(Typography.itemName)
                 .multilineTextAlignment(.center)
             // 세션 완료 처리는 SessionRunner 가 phase 를 finished 로 바꿀 때 이미 끝났다(F-4).
-            // 여기서 finishSession() 을 한 번 더 부르는 것은 onChange 한 경로에만 기대지
-            // 않으려는 방어다 — 중복 호출은 end() 가 isActive 를 보고 무시한다(계획 17).
+            // 여기서 finishSession() 을 부르는 것은 onChange 한 경로에만 기대지 않으려는
+            // 방어다. 두 번 실행되지 않는 것은 finishSession() 이 보장한다.
             Button("완료") {
                 finishSession()
                 onEnd()
