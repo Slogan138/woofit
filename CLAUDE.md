@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 작업 전 이 문서와 [docs/plans/](docs/plans/) 의 해당 기능 계획을 읽는다.
-제품 정의는 [docs/PRD.md](docs/PRD.md).
+제품 정의는 [docs/PRD.md](docs/PRD.md), 구현 구조는 [docs/TECH_SPEC.md](docs/TECH_SPEC.md).
 
 ## 프로젝트
 
