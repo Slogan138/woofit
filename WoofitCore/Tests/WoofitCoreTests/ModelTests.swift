@@ -283,6 +283,56 @@ func emptySessionHasZeroProgress() throws {
     #expect(session.recordedSetCount == 0)
 }
 
+@MainActor
+@Test("기록할 세트가 없는 세션은 운동 세션을 시작할 대상이 아니다")
+func emptySessionHasNoRecordableSets() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "빈 루틴")
+    context.insert(routine)
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    #expect(session.hasRecordableSets == false)
+}
+
+@MainActor
+@Test("종목만 있고 세트가 없는 세션도 운동 세션을 시작할 대상이 아니다")
+func exerciseWithoutSetsHasNoRecordableSets() throws {
+    // 종목을 추가하고 세트를 안 넣은 루틴은 실제로 만들어진다. 종목이 비어 있지 않으므로
+    // "종목이 0개인가" 로 판단하면 이 경우를 놓친다.
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스") // 세트를 붙이지 않는다.
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    #expect(session.sortedExercises.isEmpty == false)
+    #expect(session.hasRecordableSets == false)
+}
+
+@MainActor
+@Test("세트가 있는 세션은 운동 세션을 시작할 대상이다")
+func normalSessionHasRecordableSets() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+
+    let routine = Routine(name: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 3, weight: 80, reps: 5)
+
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    #expect(session.hasRecordableSets)
+}
+
 // MARK: - 직전 기록 (F-9)
 
 @MainActor

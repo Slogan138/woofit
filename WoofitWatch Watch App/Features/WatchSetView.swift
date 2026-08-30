@@ -146,9 +146,13 @@ struct WatchSetView: View {
             Text("모든 세트를 기록했습니다")
                 .font(Typography.itemName)
                 .multilineTextAlignment(.center)
-            // phase 가 finished 로 바뀌는 순간 SessionRunner 가 이미 세션을 완료 처리했으므로
-            // 여기서는 화면만 닫는다(F-4).
-            Button("완료", action: onEnd)
+            // 세션 완료 처리는 SessionRunner 가 phase 를 finished 로 바꿀 때 이미 끝났다(F-4).
+            // 여기서 finishSession() 을 한 번 더 부르는 것은 onChange 한 경로에만 기대지
+            // 않으려는 방어다 — 중복 호출은 end() 가 isActive 를 보고 무시한다(계획 17).
+            Button("완료") {
+                finishSession()
+                onEnd()
+            }
                 .buttonStyle(.borderedProminent)
         }
         .padding(.horizontal, 2)

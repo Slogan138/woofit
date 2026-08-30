@@ -123,3 +123,43 @@ func restoredSessionNeverStartsWorkout() async {
     #expect(fake.startCallCount == 0)
     #expect(controller.lastError == nil)
 }
+
+@MainActor
+@Test("기록할 세트가 없는 세션은 운동 세션을 시작하지 않는다")
+func sessionWithoutRecordableSetsNeverStartsWorkout() async {
+    // 워치 화면(WatchRoutinePreviewView.start)의 배선을 그대로 흉내낸다. 빈 세션은
+    // SessionRunner 가 생성 즉시 finished 라 phase 가 변하지 않고, 종료를 부르는
+    // onChange 가 영영 안 터진다 — 시작을 막지 않으면 운동 세션이 남는다(계획 17).
+    let routine = Routine(name: "빈 루틴")
+    let session = WorkoutSession.start(from: routine)
+
+    let fake = FakeWorkoutHealthSession()
+    let controller = WorkoutSessionController(healthSession: fake)
+    if session.hasRecordableSets {
+        await controller.start()
+    }
+
+    #expect(fake.startCallCount == 0)
+    #expect(fake.endCallCount == 0)
+}
+
+@MainActor
+@Test("정상 세션은 시작과 종료가 한 번씩 일어난다")
+func normalSessionStartsAndEndsOnce() async {
+    let routine = Routine(name: "가슴")
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 1, weight: 40, reps: 10)
+    let session = WorkoutSession.start(from: routine)
+
+    let fake = FakeWorkoutHealthSession()
+    let controller = WorkoutSessionController(healthSession: fake)
+    if session.hasRecordableSets {
+        await controller.start()
+    }
+
+    // 완료 화면의 「완료」 버튼과 onChange(of: phase) 가 둘 다 종료를 부를 수 있다.
+    await controller.end()
+    await controller.end()
+
+    #expect(fake.startCallCount == 1)
+    #expect(fake.endCallCount == 1)
+}
