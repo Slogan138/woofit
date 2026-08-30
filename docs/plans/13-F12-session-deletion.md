@@ -87,3 +87,77 @@ PRD D3 이 "세션 기록 전체 보관, 개수 제한 없음"으로 정해져 �
 **직전 기록(F-9)이 바뀔 수 있다.** 가장 최근 세션을 지우면 그 종목의 직전 기록이
 그 이전 세션으로 바뀐다. 정상 동작이지만, 지운 뒤 루틴의 `지난 기록` 열이 달라지는 것을
 사용자가 이상하게 느낄 수 있다. 테스트로 동작을 고정해둔다.
+
+---
+
+## 후속 · 삭제 애니메이션이 끊긴다 (fix/delete-animation)
+
+실사용에서 발견. 스와이프 → 삭제 버튼 → 확인 팝업 → 삭제 사이가 매끄럽지 않다.
+동작은 맞고 데이터도 정확하다. **표현만 문제다.**
+
+원인이 겹쳐 있다. 위에서부터 영향이 크다.
+
+### ① 삭제가 다이얼로그 닫힘과 같은 프레임에서 일어난다
+
+```swift
+Button("삭제", role: .destructive) {
+    if let session = pendingDeletion { delete(session) }   // 목록이 여기서 바뀐다
+    pendingDeletion = nil                                   // 다이얼로그가 여기서 닫힌다
+}
+```
+
+다이얼로그가 닫히는 애니메이션, 스와이프 행이 닫히는 애니메이션, 행이 목록에서
+빠지는 변화가 한 프레임에 겹친다. **사용자가 보는 "끊김"의 주 원인이다.**
+
+### ② 삭제에 애니메이션 트랜잭션이 없다
+
+`SessionDeletion.delete` 는 컨텍스트만 바꾸고 `@Query` 가 갱신된다. `withAnimation`
+밖이라 List 가 부드럽게 줄지 않고 툭 끊긴다. 월 마지막 세션을 지우면 Section 이
+통째로 사라져 더 크게 튄다.
+
+### ③ 자체 Binding 을 만들었다 — 표준 API 가 있다
+
+```swift
+isPresented: Binding(get: { pendingDeletion != nil }, set: { ... })
+```
+
+`confirmationDialog(_:isPresented:presenting:)` 가 바로 이 용도다. 매 렌더마다 새
+Binding 이 만들어져 불필요한 무효화도 생긴다. **원칙 1 위반이기도 하다**(독자 규격).
+
+### ④ `byMonth` 가 매 렌더 재계산된다
+
+`@Query(sort: \.startedAt, order: .reverse)` 가 이미 내림차순으로 주는데 `byMonth`
+안에서 `sorted(by:)` 를 또 돈다. F-13 으로 73세션이 들어와 100건에 가까워졌고,
+애니메이션이 도는 매 프레임마다 이 비용을 낸다.
+
+### ⑤ 상세 화면은 순서가 반대다 — 더 위험하다
+
+```swift
+try? SessionDeletion.delete(session, in: modelContext)
+dismiss()
+```
+
+지운 뒤에 화면을 닫는다. 그 사이 뷰가 **이미 삭제된 SwiftData 객체를 렌더**할 수
+있다. 지금은 눈에 띄지 않지만 조용히 깨지는 자리다. `dismiss()` 가 먼저여야 한다.
+
+## 작업 단위
+
+- [ ] 1. 목록 — 다이얼로그를 먼저 닫고, 닫힘이 끝난 뒤 삭제한다
+- [ ] 2. 삭제를 `withAnimation` 안에서 한다
+- [ ] 3. `confirmationDialog(_:isPresented:presenting:)` 로 바꾼다 (자체 Binding 제거)
+- [ ] 4. `byMonth` 재계산을 줄인다. `@Query` 가 이미 정렬해 주므로 안쪽 `sorted` 는 뺀다
+      — **정렬 보장이 호출자에게 넘어가므로 주석으로 남긴다**
+- [ ] 5. 상세 — `dismiss()` 를 먼저, 삭제를 나중에
+- [ ] 6. `SessionHistoryGrouping` 테스트가 여전히 통과하는지 확인 (4번이 Core 를 건드린다)
+
+## 검증
+
+**`swift test` 로는 확인되지 않는다.** 화면 표현이라 도메인 테스트가 닿지 않는다.
+4번만 Core 라 기존 `SessionHistoryGroupingTests` 로 회귀를 막는다.
+
+나머지는 실기기·시뮬레이터에서 눈으로 본다.
+
+1. 스와이프 → 삭제 → 팝업 → 삭제 가 한 흐름으로 이어질 것
+2. 월의 마지막 세션을 지워 Section 이 사라질 때도 튀지 않을 것
+3. 상세에서 삭제하면 화면이 먼저 닫히고 목록에서 사라질 것
+4. 취소를 눌렀을 때 스와이프가 제자리로 돌아올 것
