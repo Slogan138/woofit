@@ -441,6 +441,53 @@ func weightDeltaIsNilForBodyweight() {
     #expect(weighted.weightDelta(toTarget: 0) == nil)
 }
 
+@Test("압축 요약과 증감 배지는 같은 무게를 기준으로 삼는다")
+func compactSummaryUsesTopWeight() {
+    // 피라미드 세트 — 첫 세트(60kg)가 아니라 그날 가장 무겁게 든 80kg 이 기준이어야
+    // 워치 한 줄에 나란히 놓이는 두 값이 같은 무게를 말한다(계획 18).
+    let record = LastRecord(
+        normalizedName: "벤치프레스",
+        displayName: "벤치프레스",
+        performedAt: Date(),
+        entries: [
+            .init(weight: 60, targetReps: 8, performedReps: 8, result: .success),
+            .init(weight: 70, targetReps: 6, performedReps: 6, result: .success),
+            .init(weight: 80, targetReps: 5, performedReps: 5, result: .success)
+        ]
+    )
+
+    #expect(record.compactSummary == "지난번 80kg × 5 ✅")
+    #expect(record.weightDelta(toTarget: 82.5) == 2.5)
+}
+
+@Test("무게가 같은 세트만 있으면 압축 요약 표기가 바뀌지 않는다")
+func compactSummaryUnchangedForUniformSets() {
+    let record = LastRecord(
+        normalizedName: "벤치프레스",
+        displayName: "벤치프레스",
+        performedAt: Date(),
+        entries: [
+            .init(weight: 80, targetReps: 5, performedReps: 5, result: .success),
+            .init(weight: 80, targetReps: 5, performedReps: 5, result: .success),
+            .init(weight: 80, targetReps: 5, performedReps: 3, result: .failure)
+        ]
+    )
+
+    #expect(record.compactSummary == "지난번 80kg × 5 2/3")
+}
+
+@Test("기록이 비면 압축 요약은 빈 문자열이다")
+func compactSummaryIsEmptyWithoutEntries() {
+    let record = LastRecord(
+        normalizedName: "풀업",
+        displayName: "풀업",
+        performedAt: Date(),
+        entries: []
+    )
+
+    #expect(record.compactSummary == "")
+}
+
 // MARK: - 표기 (§6.4)
 
 @Test("무게 표기는 필요할 때만 소수점을 붙인다")

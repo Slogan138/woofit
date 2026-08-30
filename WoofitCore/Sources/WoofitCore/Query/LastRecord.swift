@@ -80,11 +80,15 @@ public extension LastRecord {
         return target - topWeight
     }
 
-    /// 워치처럼 폭이 좁은 화면용. 첫 세트 목표와 전체 성공 여부만 압축한다.
+    /// 워치처럼 폭이 좁은 화면용. 가장 무겁게 든 세트의 목표와 전체 성공 여부만 압축한다.
     /// 예: `지난번 80kg × 5 ✅`
+    ///
+    /// 기준이 `topWeight` 인 것은 같은 줄에 붙는 증감 배지(`weightDelta(toTarget:)`)와
+    /// 같은 무게를 가리켜야 하기 때문이다. 첫 세트 기준이면 피라미드 세트에서
+    /// 한 화면의 두 값이 서로 다른 무게를 말하게 된다(계획 18).
     var compactSummary: String {
-        guard let first = entries.first else { return "" }
-        let target = "\(WeightFormatter.string(first.weight)) × \(first.targetReps)"
+        guard let top = entries.first(where: { $0.weight == topWeight }) else { return "" }
+        let target = "\(WeightFormatter.string(top.weight)) × \(top.targetReps)"
         let mark = succeededAllSets ? "✅" : "\(successCount)/\(entries.count)"
         return "지난번 \(target) \(mark)"
     }

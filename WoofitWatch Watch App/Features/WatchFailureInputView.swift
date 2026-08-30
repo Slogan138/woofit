@@ -12,6 +12,8 @@ struct WatchFailureInputView: View {
     @State private var actualWeight: Double
     @FocusState private var repsFocused: Bool
 
+    @ScaledMetric(relativeTo: .largeTitle) private var metricSize = Typography.heroMetricSize
+
     init(set: SessionSet, onRecord: @escaping (Int, Double?) -> Void) {
         self.set = set
         self.onRecord = onRecord
@@ -29,9 +31,10 @@ struct WatchFailureInputView: View {
                     .font(Typography.secondary)
                     .foregroundStyle(.secondary)
                 // Digital Crown 으로 돌리는 이 화면의 유일한 값이라 크게 키운다.
-                // 고정 포인트 크기는 Dynamic Type 을 깨므로(PRD §9) 스케일되는 텍스트 스타일을 쓴다.
+                // 세트 화면의 목표 판독값과 같은 토큰을 쓴다 — 두 화면의 큰 숫자가
+                // 서로 다른 크기면 무엇이 주된 값인지가 흐려진다(계획 18).
                 Text("\(Int(actualReps))회")
-                    .font(.system(.largeTitle, design: .rounded).bold())
+                    .font(Typography.heroMetric(metricSize))
                     .monospacedDigit()
                     .focusable(true)
                     .focused($repsFocused)

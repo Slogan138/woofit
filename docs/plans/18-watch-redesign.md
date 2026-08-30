@@ -81,31 +81,36 @@
 색 하나뿐이고, 그건 에셋 카탈로그 두 벌의 값을 맞추면 끝난다. 지금 `WoofitCore` 로
 올리면 사용처가 갈라지는 추상화를 미리 만드는 것이다(원칙 1).
 
+**다만 워치 `ColorRole` 에 `accent` 는 추가한다.** 계획을 쓸 때는 주석만 고치면 되는 줄
+알았는데, 6번의 진행 점과 7번의 증감 배지가 강조색을 필요로 한다. 화면이 `Color.accentColor`
+를 직접 부르면 완료 기준 5번("색을 화면에서 직접 지정하지 않는다")이 깨지므로 폰과 같은
+이름의 역할로 둔다. `cardSurface`·`progress` 는 여전히 옮기지 않는다.
+
 ## 작업 단위
 
 ### 1단계 · 계산 (WoofitCore)
 
-- [ ] 1. `LastRecord.compactSummary` 의 기준 무게를 `topWeight` 로 맞춘다.
+- [x] 1. `LastRecord.compactSummary` 의 기준 무게를 `topWeight` 로 맞춘다.
       지금은 `entries.first` 의 무게를 보여주는데 `weightDelta(toTarget:)` 는 `topWeight`
       기준이라, 피라미드 세트에서 **화면의 두 값이 서로 다른 무게를 가리킨다**
 
 ### 2단계 · 토큰
 
-- [ ] 2. 워치 `AccentColor` 를 인디고로 — 폰 카탈로그와 같은 값
-- [ ] 3. 워치 `Typography` 에 `heroMetricSize`·`heroMetric(_:)` 추가.
+- [x] 2. 워치 `AccentColor` 를 인디고로 — 폰 카탈로그와 같은 값
+- [x] 3. 워치 `Typography` 에 `heroMetricSize`·`heroMetric(_:)` 추가.
       폰의 56pt 를 그대로 쓰지 않는다. 36pt 안팎에서 시작해 41mm 실기기로 정한다.
       **반드시 `@ScaledMetric(relativeTo: .largeTitle)` 로 감싼다**(PRD §9)
-- [ ] 4. 워치 `ColorRole` 의 낡은 주석 정정 — 값이 같다는 전제가 이미 깨졌다
+- [x] 4. 워치 `ColorRole` 의 낡은 주석 정정 — 값이 같다는 전제가 이미 깨졌다
 
 ### 3단계 · 화면 (`WatchSetView`)
 
-- [ ] 5. 판독값을 화면의 주인공으로 — 목표 무게·횟수에 `heroMetric` 적용
-- [ ] 6. 세트 진행 점 — `"3세트"` 텍스트 대체. 기호·형태로도 구분되게 한다(PRD §9)
-- [ ] 7. 직전 기록 줄에 증감 배지 — `WeightFormatter.delta(_:)`
-- [ ] 8. 순서 재배치 — 판독값 → 버튼 → 진행률 → 되돌리기. 버튼이 첫 화면 안에
-- [ ] 9. "성공"에 `.handGestureShortcut(.primaryAction)`
-- [ ] 10. 기록 햅틱 — `sensoryFeedback`. 성공은 `.success`, 실패는 `.warning`
-- [ ] 11. `WatchFailureInputView` 의 큰 숫자도 같은 토큰 경유로 바꾼다 — 지금은
+- [x] 5. 판독값을 화면의 주인공으로 — 목표 무게·횟수에 `heroMetric` 적용
+- [x] 6. 세트 진행 점 — `"3세트"` 텍스트 대체. 기호·형태로도 구분되게 한다(PRD §9)
+- [x] 7. 직전 기록 줄에 증감 배지 — `WeightFormatter.delta(_:)`
+- [x] 8. 순서 재배치 — 판독값 → 버튼 → 진행률 → 되돌리기. 버튼이 첫 화면 안에
+- [x] 9. "성공"에 `.handGestureShortcut(.primaryAction)`
+- [x] 10. 기록 햅틱 — `sensoryFeedback`. 성공은 `.success`, 실패는 `.warning`
+- [x] 11. `WatchFailureInputView` 의 큰 숫자도 같은 토큰 경유로 바꾼다 — 지금은
       화면이 직접 폰트를 지정한다
 - [ ] 12. 실기기에서 확인 — 41mm, 손목 각도, Always-On 상태
 
@@ -117,7 +122,7 @@
 | `WoofitCore/Tests/.../ModelTests.swift` | 회귀 테스트 (1번) |
 | `WoofitWatch Watch App/Resources/Assets.xcassets/AccentColor.colorset` | 인디고 (2번) |
 | `WoofitWatch Watch App/DesignSystem/Typography.swift` | 워치용 hero 토큰 (3번) |
-| `WoofitWatch Watch App/DesignSystem/ColorRole.swift` | 주석 정정 (4번) |
+| `WoofitWatch Watch App/DesignSystem/ColorRole.swift` | 주석 정정 · `accent` 추가 (4번) |
 | `WoofitWatch Watch App/Features/WatchSetView.swift` | 5~10번 |
 | `WoofitWatch Watch App/Features/WatchFailureInputView.swift` | 11번 |
 
@@ -129,6 +134,7 @@
 | --- | --- |
 | 피라미드 세트에서 `compactSummary` 와 `weightDelta` 가 같은 무게를 기준으로 삼는다 | `ModelTests` |
 | 균일 세트에서는 표기가 바뀌지 않는다 (회귀) | `ModelTests` |
+| 기록이 비면 빈 문자열이다 (경계) | `ModelTests` |
 
 **이 작업이 건드리는 계산은 1번 하나뿐이다.** 나머지는 기존 `SessionRunnerTests` 가 이미
 보장하는 동작을 다르게 그리는 것이라 화면 테스트를 새로 쓰지 않는다. 15 와 같은 판단이다.
