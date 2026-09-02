@@ -9,6 +9,11 @@ struct WoofitApp: App {
     private let container: ModelContainer
     private let syncService: WatchSyncService
 
+    /// 앱이 앞으로 나올 때마다 이미 도착해 있는 컨텍스트를 읽는다. 백그라운드에 있는
+    /// 동안 온 것은 delegate 로 오지 않는다(F-8).
+    @Environment(\.scenePhase) private var scenePhase
+
+
     init() {
         do {
             container = try WoofitModelContainer.makeContainer()
@@ -26,5 +31,9 @@ struct WoofitApp: App {
         }
         .modelContainer(container)
         .environment(\.watchSyncService, syncService)
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            syncService.consumeReceivedContext()
+        }
     }
 }

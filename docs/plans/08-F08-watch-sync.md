@@ -183,3 +183,27 @@ public enum SyncMerger {
 1. 폰에서 시작 → 워치를 보면 그 세션이 떠 있을 것
 2. 워치에서 시작 → 폰을 보면 그 세션이 떠 있을 것
 3. 한쪽에서 끝내면 다른 쪽도 진행 중으로 남지 않을 것
+
+### 그래도 안 됐다 — `receivedApplicationContext` 를 안 읽고 있었다
+
+위 수정을 넣고 실기기에 올렸는데 여전히 릴레이가 안 됐다. 기록은 남는데 세션만 안 넘어왔다.
+
+**`didReceiveApplicationContext` 는 받는 앱이 실행 중일 때만 호출된다.** 폰에서 세션을
+시작할 때 워치 앱은 대개 꺼져 있다. 그동안 도착한 컨텍스트는 `receivedApplicationContext`
+에 담겨 있는데, 이 앱은 **그것을 어디에서도 읽지 않았다.**
+
+세트 결과가 멀쩡히 도착한 것이 오히려 진단을 늦췄다. 그쪽은 `transferUserInfo` 라
+큐잉이 보장되고 앱이 꺼져 있어도 나중에 전달된다. **두 채널의 성질이 다르다는 것이
+이 버그의 핵심이다.**
+
+| 채널 | 앱이 꺼져 있을 때 |
+| --- | --- |
+| `transferUserInfo` (세트 결과) | 큐에 쌓였다가 전달된다 |
+| `updateApplicationContext` (루틴·세션) | **직접 읽어야 한다** |
+
+**고친 것** — `consumeReceivedContext()` 를 만들어 두 시점에 부른다.
+
+- 활성화 직후(`activationDidComplete`)
+- 앱이 앞으로 나올 때(`scenePhase == .active`) — 백그라운드에 있는 동안 온 것도 잡는다
+
+여러 번 불러도 안전하다. 루틴은 전체 교체이고 세션 병합은 같은 `sessionID` 를 갱신할 뿐이다.
