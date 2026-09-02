@@ -165,9 +165,26 @@ public final class WatchSyncService: NSObject {
             return
         }
         Self.logger.info("WCSession 활성화 완료")
+        // 앱이 꺼져 있는 동안 도착한 컨텍스트는 delegate 로 오지 않는다. 활성화 직후
+        // 한 번 읽어줘야 한다 — 이것이 없어서 세션 이어받기가 실기기에서 동작하지
+        // 않았다(F-8). 폰에서 세션을 시작할 때 워치 앱은 대개 꺼져 있다.
+        consumeReceivedContext()
         #if os(iOS)
         try? pushRoutines(in: ModelContext(container))
         #endif
+    }
+
+    /// 이미 도착해 있는 `receivedApplicationContext` 를 delegate 와 똑같이 처리한다.
+    ///
+    /// 활성화 직후와 앱이 앞으로 나올 때 부른다. **여러 번 불러도 안전하다** —
+    /// 루틴은 전체 교체이고 세션 병합은 같은 `sessionID` 를 갱신할 뿐이다.
+    public func consumeReceivedContext() {
+        let context = session.receivedApplicationContext
+        guard !context.isEmpty else { return }
+        handleApplicationContext(
+            routinesData: context[Self.routinesKey] as? Data,
+            inProgressData: context[Self.inProgressSessionKey] as? Data
+        )
     }
 
     /// **두 키를 독립적으로 처리한다.** 워치가 보내는 컨텍스트에는 루틴이 없고, 폰이 보내는
