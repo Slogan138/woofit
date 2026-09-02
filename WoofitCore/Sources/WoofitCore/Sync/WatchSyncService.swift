@@ -33,6 +33,12 @@ public final class WatchSyncService: NSObject {
     /// 가장 최근에 받은 진행 중 세션. 반영은 자동으로 끝나 있고, 화면이 알림을 띄우고 싶을 때 쓴다.
     public private(set) var latestInProgressSession: SessionSnapshotPayload?
 
+    /// 진행 중 세션을 받아 저장소에 반영한 직후 불린다. 화면이 그 세션을 열도록 하는 용도다(F-8).
+    ///
+    /// 이 타입이 `@Observable` 이 아니라 콜백을 쓴다. `NSObject` 를 상속해야 하는
+    /// `WCSessionDelegate` 라서 관찰 매크로를 얹기보다 이쪽이 단순하다.
+    public var didReceiveInProgressSession: (() -> Void)?
+
     /// `.notActivated` 면 아직 `activate()` 가 끝나지 않은 것이다 — "워치 없음"과 구분해야 한다(리뷰 지적 ③).
     public var activationState: WCSessionActivationState { session.activationState }
 
@@ -192,6 +198,7 @@ public final class WatchSyncService: NSObject {
     private func handleApplicationContext(routinesData: Data?, inProgressData: Data?) {
         let context = ModelContext(container)
         var changed = false
+        var receivedInProgress = false
 
         if let routinesData,
            let payloads = try? JSONDecoder().decode([RoutinePayload].self, from: routinesData) {
@@ -211,6 +218,7 @@ public final class WatchSyncService: NSObject {
             do {
                 try SyncMerger.mergeInProgress(payload, into: context)
                 changed = true
+                receivedInProgress = true
             } catch {
                 assertionFailure("세션 동기화 수신 실패: \(error)")
             }
@@ -221,7 +229,10 @@ public final class WatchSyncService: NSObject {
             try context.save()
         } catch {
             assertionFailure("동기화 저장 실패: \(error)")
+            return
         }
+        // 저장이 끝난 뒤에 알린다 — 화면이 곧바로 저장소를 다시 읽기 때문이다.
+        if receivedInProgress { didReceiveInProgressSession?() }
     }
 }
 

@@ -6,6 +6,11 @@ import WoofitCore
 struct WatchRootView: View {
     @Query(sort: \Routine.updatedAt, order: .reverse) private var routines: [Routine]
 
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.watchSyncService) private var syncService
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var coordinator = WatchSessionCoordinator()
+
     private var today: Weekday { .today() }
 
     private var todaysRoutine: Routine? {
@@ -19,6 +24,8 @@ struct WatchRootView: View {
     }
 
     var body: some View {
+        @Bindable var coordinator = coordinator
+
         NavigationStack {
             List {
                 if let todaysRoutine {
@@ -47,6 +54,26 @@ struct WatchRootView: View {
                     )
                 }
             }
+        }
+        .environment(coordinator)
+        // 폰에서 시작한 세션을 그대로 연다(F-8). 워치에서 시작한 세션도 같은 자리로 열린다.
+        .fullScreenCover(item: $coordinator.activeRunner) { runner in
+            NavigationStack {
+                WatchSetView(runner: runner, onEnd: { coordinator.endSession() })
+            }
+        }
+        .task {
+            // 앱이 꺼져 있는 동안 폰에서 시작한 세션은 활성화 시점에 저장소로 들어온다.
+            syncService?.consumeReceivedContext()
+            coordinator.restoreIfNeeded(in: modelContext)
+            // 앱이 이미 떠 있는데 세션이 도착하는 경우는 delegate 로만 알 수 있다.
+            syncService?.didReceiveInProgressSession = { [modelContext] in
+                coordinator.restoreIfNeeded(in: modelContext)
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            coordinator.restoreIfNeeded(in: modelContext)
         }
     }
 }
