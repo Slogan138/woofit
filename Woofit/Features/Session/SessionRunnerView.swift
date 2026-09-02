@@ -10,6 +10,8 @@ struct SessionRunnerView: View {
     let runner: SessionRunner
     let onEnd: () -> Void
 
+    @Environment(\.watchSyncService) private var syncService
+
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
     @State private var isShowingExercisePicker = false
@@ -79,6 +81,12 @@ struct SessionRunnerView: View {
         .disabled(isShowingFullScreenOverlay)
         // 화면을 보지 않고 누르는 버튼이라 기록이 실제로 남았음을 촉각으로 확인시킨다.
         // 되돌리기(기록 수 감소)에는 울리지 않는다.
+        // 세트를 기록할 때마다 워치로 진행 상태를 보낸다(F-8). 워치는 세트마다
+        // `sendSetResult` 를 보내지만 폰에는 그 경로가 없어 기록이 넘어가지 않았다.
+        // `updateApplicationContext` 는 최신 것만 도착하면 되는 채널이라 매 세트가 부담이 아니다.
+        .onChange(of: runner.session.recordedSetCount) { _, _ in
+            try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: runner.session))
+        }
         .sensoryFeedback(trigger: runner.session.recordedSetCount) { old, new in
             guard new > old else { return nil }
             return runner.lastRecordedSet?.result == .failure ? .warning : .success
