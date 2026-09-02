@@ -35,6 +35,8 @@ struct RootView: View {
 
     /// 세션이 끝나면 직전 기록이 바뀌므로, 루틴을 다시 내려보내 워치에도 반영한다(F-9).
     private func endSession() {
+        // 끝난 세션의 최종 상태를 보내야 워치가 계속 진행 중으로 보여주지 않는다(F-8).
+        coordinator.push(coordinator.activeRunner?.session, to: syncService)
         coordinator.endSession()
         try? syncService?.pushRoutines(in: modelContext)
     }

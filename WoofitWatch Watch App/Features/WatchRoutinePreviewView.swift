@@ -9,6 +9,7 @@ struct WatchRoutinePreviewView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.workoutSessionController) private var workoutSessionController
+    @Environment(\.watchSyncService) private var syncService
     @State private var activeRunner: SessionRunner?
 
     var body: some View {
@@ -58,6 +59,9 @@ struct WatchRoutinePreviewView: View {
         if session.hasRecordableSets {
             Task { await workoutSessionController?.start() }
         }
+        // 폰이 곧바로 이어받도록 진행 상태를 보낸다(F-8). 종료 시점의 전송은
+        // `WatchSetView.finishSession()` 이 맡는다.
+        try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: session))
     }
 }
 

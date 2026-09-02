@@ -114,7 +114,7 @@ struct RoutineListView: View {
     /// 홈에서 바로 세션을 시작한다(P1 역할). 종목이 없는 루틴은 시작해도 즉시 완료되므로 막는다.
     private func startBar(for routine: Routine) -> some View {
         Button {
-            coordinator.start(from: routine, in: modelContext)
+            coordinator.start(from: routine, in: modelContext, syncService: syncService)
         } label: {
             Text("시작")
                 .font(Typography.itemName)

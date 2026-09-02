@@ -100,7 +100,10 @@ struct WatchSetView: View {
         guard !didFinishSession else { return }
         didFinishSession = true
 
-        try? syncService?.sendSessionSnapshot(SessionSnapshotPayload.make(for: runner.session))
+        let snapshot = SessionSnapshotPayload.make(for: runner.session)
+        try? syncService?.sendSessionSnapshot(snapshot)
+        // 폰이 "진행 중" 으로 계속 보여주지 않도록 이어받기 채널도 최종 상태로 갱신한다(F-8).
+        try? syncService?.sendInProgressSession(snapshot)
         try? WatchRetention.prune(in: modelContext)
         Task { await workoutSessionController?.end() }
     }
