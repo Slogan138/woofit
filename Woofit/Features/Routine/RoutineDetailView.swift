@@ -7,6 +7,7 @@ struct RoutineDetailView: View {
     let routine: Routine
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.watchSyncService) private var syncService
     @Environment(SessionCoordinator.self) private var coordinator
 
     @State private var isEditing = false
@@ -54,7 +55,7 @@ struct RoutineDetailView: View {
         .safeAreaInset(edge: .bottom) {
             if !routine.sortedExercises.isEmpty {
                 Button {
-                    coordinator.start(from: routine, in: modelContext)
+                    coordinator.start(from: routine, in: modelContext, syncService: syncService)
                 } label: {
                     Text("시작")
                         .font(Typography.itemName)

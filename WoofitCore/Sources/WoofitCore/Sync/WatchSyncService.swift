@@ -30,6 +30,9 @@ public final class WatchSyncService: NSObject {
     /// (헬스장에서 전송을 기다리게 할 수 없다, F-3) 실기기 진단은 이 값과 로그에 의존한다(리뷰 지적 ②).
     public private(set) var lastSendError: Error?
 
+    /// 가장 최근에 받은 진행 중 세션. 반영은 자동으로 끝나 있고, 화면이 알림을 띄우고 싶을 때 쓴다.
+    public private(set) var latestInProgressSession: SessionSnapshotPayload?
+
     /// `.notActivated` 면 아직 `activate()` 가 끝나지 않은 것이다 — "워치 없음"과 구분해야 한다(리뷰 지적 ③).
     public var activationState: WCSessionActivationState { session.activationState }
 
@@ -81,7 +84,9 @@ public final class WatchSyncService: NSObject {
         }
     }
 
-    /// 폰에서 시작한 세션을 워치가 이어받도록 진행 상태를 내려보낸다. `nil` 이면 이어받을 세션이 없다는 뜻.
+    /// 진행 상태를 상대 기기로 보낸다. **양방향이다** — 폰에서 시작해도 워치에서 시작해도
+    /// 같은 경로를 쓴다. `updateApplicationContext` 는 각 기기가 자기 것을 따로 갖는다.
+    /// `nil` 이면 이어받을 세션이 없다는 뜻이다(세션을 지웠을 때).
     public func sendInProgressSession(_ payload: SessionSnapshotPayload?) throws {
         try track {
             var context = session.applicationContext
@@ -165,19 +170,40 @@ public final class WatchSyncService: NSObject {
         #endif
     }
 
-    private func handleApplicationContext(routinesData: Data?) {
-        // "inProgressSession" 은 워치·폰 세션 이어받기 화면이 직접 디코드해 쓴다.
-        // SwiftData 세션으로 바로 반영하면 이미 로컬에서 진행 중인 세션과 충돌할 수 있어서다.
-        guard let routinesData, let payloads = try? JSONDecoder().decode([RoutinePayload].self, from: routinesData) else {
-            return
-        }
-        latestRoutines = payloads
+    /// **두 키를 독립적으로 처리한다.** 워치가 보내는 컨텍스트에는 루틴이 없고, 폰이 보내는
+    /// 컨텍스트에는 둘 다 들어 있다. 하나가 비었다고 먼저 빠져나오면 나머지를 놓친다.
+    private func handleApplicationContext(routinesData: Data?, inProgressData: Data?) {
         let context = ModelContext(container)
+        var changed = false
+
+        if let routinesData,
+           let payloads = try? JSONDecoder().decode([RoutinePayload].self, from: routinesData) {
+            latestRoutines = payloads
+            do {
+                try SyncMerger.replaceRoutines(with: payloads, in: context)
+                changed = true
+            } catch {
+                assertionFailure("루틴 동기화 수신 실패: \(error)")
+            }
+        }
+
+        // 상대 기기에서 시작한 세션을 그대로 반영한다(F-8 이어받기).
+        if let inProgressData,
+           let payload = try? JSONDecoder().decode(SessionSnapshotPayload.self, from: inProgressData) {
+            latestInProgressSession = payload
+            do {
+                try SyncMerger.mergeInProgress(payload, into: context)
+                changed = true
+            } catch {
+                assertionFailure("세션 동기화 수신 실패: \(error)")
+            }
+        }
+
+        guard changed else { return }
         do {
-            try SyncMerger.replaceRoutines(with: payloads, in: context)
             try context.save()
         } catch {
-            assertionFailure("동기화 수신 실패: \(error)")
+            assertionFailure("동기화 저장 실패: \(error)")
         }
     }
 }
@@ -213,8 +239,9 @@ extension WatchSyncService: WCSessionDelegate {
 
     public nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         let routinesData = applicationContext[Self.routinesKey] as? Data
+        let inProgressData = applicationContext[Self.inProgressSessionKey] as? Data
         Task { @MainActor in
-            self.handleApplicationContext(routinesData: routinesData)
+            self.handleApplicationContext(routinesData: routinesData, inProgressData: inProgressData)
         }
     }
 }

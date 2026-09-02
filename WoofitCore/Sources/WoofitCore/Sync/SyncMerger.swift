@@ -34,6 +34,26 @@ public enum SyncMerger {
         session.state = payload.state
     }
 
+    // MARK: - 진행 중 세션 (양방향)
+
+    /// 다른 기기에서 시작한 세션을 그대로 반영한다(F-8 이어받기).
+    ///
+    /// **남아 있는 다른 진행 중 세션은 지우지 않고 중단으로 돌린다.** 두 기기에서 동시에
+    /// 시작하는 일은 없다는 전제지만, 어긋났을 때 기록이 조용히 사라지는 것이 이 앱에서
+    /// 가장 나쁜 결과다. 중단으로 남겨두면 기록 목록에서 확인하고 지울 수 있다.
+    public static func mergeInProgress(
+        _ payload: SessionSnapshotPayload,
+        into context: ModelContext,
+        at date: Date = Date()
+    ) throws {
+        try merge(payload, into: context)
+
+        for session in try context.fetch(FetchDescriptor<WorkoutSession>())
+        where session.state == .inProgress && session.id != payload.sessionID {
+            session.abandon(at: date)
+        }
+    }
+
     // MARK: - 루틴 (폰 → 워치)
 
     /// 전체를 교체한다. 루틴은 최신 상태만 있으면 되므로 병합하지 않는다(PRD §8).
