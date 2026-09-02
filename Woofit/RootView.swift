@@ -29,8 +29,13 @@ struct RootView: View {
         }
         // 워치에서 시작한 세션이 도착하면 그 자리에서 연다(F-8). 앱이 이미 떠 있으면
         // scenePhase 가 바뀌지 않아 이 값의 변화로만 알 수 있다.
-        .onChange(of: syncService?.latestInProgressSession) { _, _ in
+        .onChange(of: syncService?.latestInProgressSession) { _, payload in
             coordinator.restoreIfNeeded(in: modelContext)
+            // 이미 열려 있는 세션이면 진행 위치를 다시 잡는다 — 상대가 다음 종목으로
+            // 넘어간 것을 따라가야 한다(F-8).
+            if let runner = coordinator.activeRunner, runner.id == payload?.sessionID {
+                runner.refreshFromRemoteChange()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
