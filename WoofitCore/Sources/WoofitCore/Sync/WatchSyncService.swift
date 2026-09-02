@@ -139,7 +139,10 @@ public final class WatchSyncService: NSObject {
     // MARK: - 수신 처리
 
     private func handleUserInfo(setResultData: Data?, snapshotData: Data?) {
-        let context = ModelContext(container)
+        // **화면과 같은 컨텍스트에 반영한다.** 별도 컨텍스트에 저장하면 열려 있는
+        // 세션 화면이 이미 들고 있는 객체가 즉시 갱신되지 않아, 상대가 기록한 세트가
+        // 화면에 안 나타난다(F-8). 이 타입은 `@MainActor` 라 `mainContext` 를 써도 안전하다.
+        let context = container.mainContext
         do {
             if let setResultData {
                 let payload = try JSONDecoder().decode(SetResultPayload.self, from: setResultData)
@@ -174,7 +177,7 @@ public final class WatchSyncService: NSObject {
         // 않았다(F-8). 폰에서 세션을 시작할 때 워치 앱은 대개 꺼져 있다.
         consumeReceivedContext()
         #if os(iOS)
-        try? pushRoutines(in: ModelContext(container))
+        try? pushRoutines(in: container.mainContext)
         #endif
     }
 
@@ -194,7 +197,10 @@ public final class WatchSyncService: NSObject {
     /// **두 키를 독립적으로 처리한다.** 워치가 보내는 컨텍스트에는 루틴이 없고, 폰이 보내는
     /// 컨텍스트에는 둘 다 들어 있다. 하나가 비었다고 먼저 빠져나오면 나머지를 놓친다.
     private func handleApplicationContext(routinesData: Data?, inProgressData: Data?) {
-        let context = ModelContext(container)
+        // **화면과 같은 컨텍스트에 반영한다.** 별도 컨텍스트에 저장하면 열려 있는
+        // 세션 화면이 이미 들고 있는 객체가 즉시 갱신되지 않아, 상대가 기록한 세트가
+        // 화면에 안 나타난다(F-8). 이 타입은 `@MainActor` 라 `mainContext` 를 써도 안전하다.
+        let context = container.mainContext
         var changed = false
         var arrived: SessionSnapshotPayload?
 

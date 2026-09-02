@@ -80,6 +80,9 @@ struct WatchSetView: View {
         .onChange(of: runner.lastRecordedSet) { _, set in
             guard let set, let payload = SetResultPayload.make(for: set) else { return }
             try? syncService?.sendSetResult(payload)
+            // 세트 하나만 보내면 폰이 그 세션을 아직 모를 때 붙일 곳이 없다.
+            // 진행 상태 전체도 함께 갱신한다(F-8).
+            try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: runner.session))
         }
         // 마지막 세트를 기록하면 SessionRunner 가 세션을 자동으로 완료 처리한다(F-4).
         .onChange(of: runner.phase) { _, phase in
