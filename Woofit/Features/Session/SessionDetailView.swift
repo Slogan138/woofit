@@ -10,6 +10,7 @@ struct SessionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingExport: MarkdownExport?
     @State private var isDeleteConfirmationPresented = false
+    @State private var editingSet: SessionSet?
 
     var body: some View {
         List {
@@ -20,7 +21,14 @@ struct SessionDetailView: View {
             ForEach(session.sortedExercises) { exercise in
                 Section(exercise.name) {
                     ForEach(exercise.sortedSets) { set in
-                        DetailSetRow(set: set)
+                        // 줄을 누르면 고친다(F-15). 잘못 누른 결과나 계획과 달랐던 무게를
+                        // 바로잡지 못하면 직전 기록·추이·무게 제안이 함께 어긋난다.
+                        Button {
+                            editingSet = set
+                        } label: {
+                            DetailSetRow(set: set)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -63,6 +71,11 @@ struct SessionDetailView: View {
             Button("취소", role: .cancel) {}
         } message: {
             Text("마크다운으로 옮기지 않았다면 이 운동 기록이 사라집니다. 되돌릴 수 없습니다.")
+        }
+        .sheet(item: $editingSet) { set in
+            SetEditSheet(set: set) { change in
+                SessionRecordEditor.apply(change, to: set)
+            }
         }
         .sheet(item: $pendingExport) { export in
             MarkdownPreviewView(title: export.title, markdown: export.markdown)
