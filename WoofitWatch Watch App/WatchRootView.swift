@@ -66,10 +66,10 @@ struct WatchRootView: View {
             // 앱이 꺼져 있는 동안 폰에서 시작한 세션은 활성화 시점에 저장소로 들어온다.
             syncService?.consumeReceivedContext()
             coordinator.restoreIfNeeded(in: modelContext)
-            // 앱이 이미 떠 있는데 세션이 도착하는 경우는 delegate 로만 알 수 있다.
-            syncService?.didReceiveInProgressSession = { [modelContext] in
-                coordinator.restoreIfNeeded(in: modelContext)
-            }
+        }
+        // 앱이 이미 떠 있는데 세션이 도착하는 경우는 이 값의 변화로만 알 수 있다.
+        .onChange(of: syncService?.latestInProgressSession) { _, _ in
+            coordinator.restoreIfNeeded(in: modelContext)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }

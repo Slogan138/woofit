@@ -12,6 +12,7 @@ import os
 ///
 /// `sendMessage` 는 쓰지 않는다. 상대가 그 순간 도달 가능해야만 동작해 헬스장에서 유실된다.
 @MainActor
+@Observable
 public final class WatchSyncService: NSObject {
     // 상수 문자열이라 격리와 무관하지만, 델리게이트 콜백(nonisolated)에서 그대로 읽어야 해서 명시한다.
     private nonisolated static let routinesKey = "routines"
@@ -30,14 +31,11 @@ public final class WatchSyncService: NSObject {
     /// (헬스장에서 전송을 기다리게 할 수 없다, F-3) 실기기 진단은 이 값과 로그에 의존한다(리뷰 지적 ②).
     public private(set) var lastSendError: Error?
 
-    /// 가장 최근에 받은 진행 중 세션. 반영은 자동으로 끝나 있고, 화면이 알림을 띄우고 싶을 때 쓴다.
-    public private(set) var latestInProgressSession: SessionSnapshotPayload?
-
-    /// 진행 중 세션을 받아 저장소에 반영한 직후 불린다. 화면이 그 세션을 열도록 하는 용도다(F-8).
+    /// 가장 최근에 받아 저장소에 반영한 진행 중 세션.
     ///
-    /// 이 타입이 `@Observable` 이 아니라 콜백을 쓴다. `NSObject` 를 상속해야 하는
-    /// `WCSessionDelegate` 라서 관찰 매크로를 얹기보다 이쪽이 단순하다.
-    public var didReceiveInProgressSession: (() -> Void)?
+    /// 화면은 이 값을 `onChange(of:)` 로 지켜보다가 그 세션을 연다(F-8).
+    /// **저장이 끝난 뒤에 대입한다** — 화면이 곧바로 저장소를 다시 읽기 때문이다.
+    public private(set) var latestInProgressSession: SessionSnapshotPayload?
 
     /// `.notActivated` 면 아직 `activate()` 가 끝나지 않은 것이다 — "워치 없음"과 구분해야 한다(리뷰 지적 ③).
     public var activationState: WCSessionActivationState { session.activationState }
@@ -198,7 +196,7 @@ public final class WatchSyncService: NSObject {
     private func handleApplicationContext(routinesData: Data?, inProgressData: Data?) {
         let context = ModelContext(container)
         var changed = false
-        var receivedInProgress = false
+        var arrived: SessionSnapshotPayload?
 
         if let routinesData,
            let payloads = try? JSONDecoder().decode([RoutinePayload].self, from: routinesData) {
@@ -214,11 +212,10 @@ public final class WatchSyncService: NSObject {
         // 상대 기기에서 시작한 세션을 그대로 반영한다(F-8 이어받기).
         if let inProgressData,
            let payload = try? JSONDecoder().decode(SessionSnapshotPayload.self, from: inProgressData) {
-            latestInProgressSession = payload
             do {
                 try SyncMerger.mergeInProgress(payload, into: context)
                 changed = true
-                receivedInProgress = true
+                arrived = payload
             } catch {
                 assertionFailure("세션 동기화 수신 실패: \(error)")
             }
@@ -231,8 +228,7 @@ public final class WatchSyncService: NSObject {
             assertionFailure("동기화 저장 실패: \(error)")
             return
         }
-        // 저장이 끝난 뒤에 알린다 — 화면이 곧바로 저장소를 다시 읽기 때문이다.
-        if receivedInProgress { didReceiveInProgressSession?() }
+        if let arrived { latestInProgressSession = arrived }
     }
 }
 

@@ -230,10 +230,12 @@ public enum SyncMerger {
 | --- | --- |
 | `.task` (앱 시작) | 꺼져 있는 동안 도착한 것 |
 | `scenePhase == .active` | 백그라운드에 있는 동안 도착한 것 |
-| `didReceiveInProgressSession` 콜백 | **앱이 떠 있는 동안** 도착한 것 |
+| `latestInProgressSession` 변화 | **앱이 떠 있는 동안** 도착한 것 |
 
-세 번째가 콜백인 이유는 `WatchSyncService` 가 `WCSessionDelegate` 때문에 `NSObject` 를
-상속해야 해서다. 관찰 매크로를 얹기보다 콜백 하나가 단순하다.
+세 번째는 처음에 콜백으로 만들었다가 `@Observable` 로 바꿨다. "`WCSessionDelegate`
+때문에 `NSObject` 를 상속해야 해서 관찰 매크로를 못 쓴다"고 판단했는데 **확인해보니
+그냥 된다.** 콜백은 대입 슬롯이 하나뿐이라 두 곳에서 설정하면 조용히 덮어쓰는 문제도
+있었다. 상태 관찰은 `@Observable` 이 표준이다(원칙 1).
 
 ### 남겨두는 것
 
