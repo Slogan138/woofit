@@ -68,8 +68,11 @@ struct WatchRootView: View {
             coordinator.restoreIfNeeded(in: modelContext)
         }
         // 앱이 이미 떠 있는데 세션이 도착하는 경우는 이 값의 변화로만 알 수 있다.
-        .onChange(of: syncService?.latestInProgressSession) { _, _ in
+        .onChange(of: syncService?.latestInProgressSession) { _, payload in
             coordinator.restoreIfNeeded(in: modelContext)
+            if let runner = coordinator.activeRunner, runner.id == payload?.sessionID {
+                runner.refreshFromRemoteChange()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }

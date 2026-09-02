@@ -61,6 +61,25 @@ public final class SessionRunner: Identifiable, Hashable {
         return lastRecords[name]
     }
 
+    /// 상대 기기에서 기록이 도착해 세션 데이터가 바뀌었을 때 진행 위치를 다시 잡는다(F-8).
+    ///
+    /// `refreshPhase` 는 로컬 조작(기록·되돌리기·이동)에서만 불린다. 그래서 같은 종목
+    /// 안에서는 세트 결과가 화면에 반영되는데, **상대가 종목을 넘어가면 따라가지 못했다** —
+    /// 이쪽 러너는 여전히 이전 종목을 기록 중으로 알고 있기 때문이다.
+    ///
+    /// 로컬 조작과 달리 "방금 어느 세트를 눌렀는지"가 없으므로 남은 첫 세트를 초점으로
+    /// 삼는다. 상대가 이미 넘어갔으니 전환 화면을 거치지 않고 바로 그 종목을 기록 중으로 둔다.
+    public func refreshFromRemoteChange() {
+        focusedSet = session.nextPendingSet
+        if let exercise = focusedSet?.exercise ?? session.currentExercise {
+            refreshPhase(around: exercise)
+            return
+        }
+        // 남은 세트가 없다 — 상대가 세션을 끝냈다.
+        phase = .finished
+        if session.state == .inProgress { session.finish() }
+    }
+
     public func focus(on set: SessionSet) {
         focusedSet = set
         refreshPhase(around: set.exercise)
