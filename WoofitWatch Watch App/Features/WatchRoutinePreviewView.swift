@@ -10,7 +10,7 @@ struct WatchRoutinePreviewView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.workoutSessionController) private var workoutSessionController
     @Environment(\.watchSyncService) private var syncService
-    @State private var activeRunner: SessionRunner?
+    @Environment(WatchSessionCoordinator.self) private var coordinator
 
     var body: some View {
         List {
@@ -40,28 +40,17 @@ struct WatchRoutinePreviewView: View {
             }
         }
         .navigationTitle(routine.resolvedTitle)
-        .navigationDestination(item: $activeRunner) { runner in
-            WatchSetView(runner: runner, onEnd: { activeRunner = nil })
-        }
     }
 
-    /// 여기가 워치에서 세션을 새로 시작하는 유일한 경로다 — 복원 경로가 따로 없으므로
-    /// `workoutSessionController.start()` 를 여기 한 곳에서만 부르면 유령 운동을 피할 수 있다(계획 17).
+    /// 세션 소유는 루트(`WatchSessionCoordinator`)가 갖는다 — 폰에서 넘어온 세션도
+    /// 같은 자리에서 열려야 하기 때문이다(F-8).
     private func start() {
-        let session = WorkoutSession.start(from: routine)
-        modelContext.insert(session)
-        activeRunner = SessionRunner(
-            session: session,
-            lastRecords: (try? LastRecordLookup.fetchAll(for: session, in: modelContext)) ?? [:]
+        coordinator.start(
+            from: routine,
+            in: modelContext,
+            syncService: syncService,
+            workoutSessionController: workoutSessionController
         )
-        // 기록할 세트가 없으면 SessionRunner 가 생성 즉시 finished 라 phase 가 변하지 않고,
-        // 종료를 부르는 onChange 가 영영 안 터진다 — 시작하지 않는 것으로 막는다(계획 17).
-        if session.hasRecordableSets {
-            Task { await workoutSessionController?.start() }
-        }
-        // 폰이 곧바로 이어받도록 진행 상태를 보낸다(F-8). 종료 시점의 전송은
-        // `WatchSetView.finishSession()` 이 맡는다.
-        try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: session))
     }
 }
 

@@ -5,6 +5,7 @@ import WoofitCore
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.watchSyncService) private var syncService
+    @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator = SessionCoordinator()
 
     var body: some View {
@@ -25,6 +26,15 @@ struct RootView: View {
         .task {
             coordinator.restoreIfNeeded(in: modelContext)
             try? syncService?.pushRoutines(in: modelContext)
+        }
+        // 워치에서 시작한 세션이 도착하면 그 자리에서 연다(F-8). 앱이 이미 떠 있으면
+        // scenePhase 가 바뀌지 않아 이 값의 변화로만 알 수 있다.
+        .onChange(of: syncService?.latestInProgressSession) { _, _ in
+            coordinator.restoreIfNeeded(in: modelContext)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            coordinator.restoreIfNeeded(in: modelContext)
         }
         .fullScreenCover(item: $coordinator.activeRunner) { runner in
             NavigationStack {
