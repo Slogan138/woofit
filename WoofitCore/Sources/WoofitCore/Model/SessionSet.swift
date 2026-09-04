@@ -56,11 +56,14 @@ public extension SessionSet {
     }
 
     /// 목표대로 달성. 추가 입력 없이 1탭으로 끝난다(F-3).
-    func markSuccess(at date: Date = Date()) {
+    ///
+    /// `actualWeight` 는 **기록 수정(F-15)에서만 쓴다.** 계획과 다른 무게로 성공한 경우를
+    /// 나중에 바로잡기 위해서다. 실행 중에는 목표대로 들었다는 뜻이므로 넘기지 않는다.
+    func markSuccess(actualWeight weight: Double? = nil, at date: Date = Date()) {
         stopRestIfNeeded(at: date)
         result = .success
         actualReps = nil
-        actualWeight = nil
+        actualWeight = weight
         recordedAt = date
     }
 
