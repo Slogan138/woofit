@@ -70,6 +70,15 @@ public final class SessionRunner: Identifiable, Hashable {
     /// 로컬 조작과 달리 "방금 어느 세트를 눌렀는지"가 없으므로 남은 첫 세트를 초점으로
     /// 삼는다. 상대가 이미 넘어갔으니 전환 화면을 거치지 않고 바로 그 종목을 기록 중으로 둔다.
     public func refreshFromRemoteChange() {
+        // **상대가 끝낸 세션을 되살리지 않는다.** `refreshPhase` 는 남은 세트가 있으면
+        // `reopen()` 을 부르는데, 그건 로컬에서 마지막 세트를 되돌린 경우를 위한 것이다.
+        // 중단된 세션이 도착했을 때 그 경로를 타면 다시 진행 중이 되고, 그 상태가 상대
+        // 기기로 되돌아가 중단이 풀린다(F-8).
+        guard session.state == .inProgress else {
+            phase = .finished
+            focusedSet = nil
+            return
+        }
         focusedSet = session.nextPendingSet
         if let exercise = focusedSet?.exercise ?? session.currentExercise {
             refreshPhase(around: exercise)
