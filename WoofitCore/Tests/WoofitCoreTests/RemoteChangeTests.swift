@@ -97,3 +97,55 @@ func remoteChangeFollowsUndo() throws {
     #expect(runner.phase == .recording(first))
     #expect(runner.focusedSet?.id == first.sortedSets[1].id)
 }
+
+// MARK: - 종료 릴레이 (F-8)
+
+@MainActor
+@Test("상대가 중단한 세션을 되살리지 않는다")
+func remoteChangeDoesNotReopenAbandoned() throws {
+    // refreshPhase 는 남은 세트가 있으면 reopen() 을 부른다 — 로컬에서 마지막 세트를
+    // 되돌린 경우를 위한 경로다. 중단이 도착했을 때 그 경로를 타면 다시 진행 중이 되고,
+    // 그 상태가 상대 기기로 되돌아가 중단이 풀린다.
+    let container = try makeContainer()
+    let session = twoExerciseSession(in: container.mainContext)
+    let runner = SessionRunner(session: session)
+
+    // 상대가 세트를 남긴 채 중단했다.
+    session.abandon()
+    runner.refreshFromRemoteChange()
+
+    #expect(session.state == .abandoned)
+    #expect(runner.phase == .finished)
+}
+
+@MainActor
+@Test("상대가 완료한 세션도 되살리지 않는다")
+func remoteChangeDoesNotReopenCompleted() throws {
+    let container = try makeContainer()
+    let session = twoExerciseSession(in: container.mainContext)
+    let runner = SessionRunner(session: session)
+
+    for set in session.allSets { set.markSuccess() }
+    session.finish()
+    runner.refreshFromRemoteChange()
+
+    #expect(session.state == .completed)
+    #expect(runner.phase == .finished)
+}
+
+@MainActor
+@Test("로컬에서 마지막 세트를 되돌리는 경로는 그대로 세션을 다시 연다")
+func localUndoStillReopens() throws {
+    // 위 두 테스트가 막은 것은 원격 경로다. 로컬 되돌리기는 계속 reopen 되어야 한다(F-3).
+    let container = try makeContainer()
+    let session = twoExerciseSession(in: container.mainContext)
+    let runner = SessionRunner(session: session)
+
+    for set in session.allSets { runner.recordSuccess(for: set) }
+    #expect(session.state == .completed)
+
+    let last = try #require(session.allSets.last)
+    runner.undo(last)
+
+    #expect(session.state == .inProgress)
+}

@@ -35,6 +35,8 @@ struct RootView: View {
             // 넘어간 것을 따라가야 한다(F-8).
             if let runner = coordinator.activeRunner, runner.id == payload?.sessionID {
                 runner.refreshFromRemoteChange()
+                // 상대가 끝냈으면 이쪽 화면도 닫는다. 요약은 끝낸 기기가 보여준다.
+                if runner.session.state != .inProgress { coordinator.endSession() }
             }
         }
         .onChange(of: scenePhase) { _, phase in
