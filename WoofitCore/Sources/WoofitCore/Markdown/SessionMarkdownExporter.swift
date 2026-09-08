@@ -21,9 +21,11 @@ public enum SessionMarkdownExporter {
 
     // MARK: - 헤더
 
+    /// 날짜는 노트의 최상위 제목(`#`)이다. 하루에 여러 부위를 하면 그 아래 `##` 로
+    /// 나뉘므로, 세션 제목이 `##` 이면 노트에서 한 단계 어긋난다.
     private static func headerLine(for session: WorkoutSession) -> String {
         let weekday = Weekday(calendarWeekday: Calendar.current.component(.weekday, from: session.startedAt)) ?? .sunday
-        return "## \(dateFormatter.string(from: session.startedAt)) (\(weekday.shortName)) · \(session.category)"
+        return "# \(dateFormatter.string(from: session.startedAt)) (\(weekday.shortName)) · \(session.category)"
     }
 
     private static func metaLines(for session: WorkoutSession) -> [String] {

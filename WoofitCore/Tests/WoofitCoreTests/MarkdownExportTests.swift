@@ -58,7 +58,7 @@ private func makeGymSession() -> WorkoutSession {
 @Test("형식 A 전체 출력이 PRD §6.1 예시와 일치한다")
 func horizontalFormatMatchesSpecExample() {
     let expected = [
-        "## 2026-08-31 (월) · 가슴",
+        "# 2026-08-31 (월) · 가슴",
         "",
         "- 루틴: 월요일 가슴",
         "- 소요 시간: 1시간 12분",
@@ -167,7 +167,7 @@ func verticalFormatListsOneRowPerSet() {
     session.endedAt = session.startedAt.addingTimeInterval(1_800)
 
     let expected = [
-        "## 2026-08-31 (월) · 가슴",
+        "# 2026-08-31 (월) · 가슴",
         "",
         "- 루틴: 가슴",
         "- 소요 시간: 30분",
