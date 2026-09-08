@@ -183,6 +183,40 @@ func metadataInfersWeekdayAndCategoryFromTitle() {
     #expect(result.routine.weekdayMask == Weekday.monday.bit)
 }
 
+@Test("내보낸 세션의 # 제목에서도 요일과 이름을 뽑는다")
+func metadataReadsLevelOneHeading() {
+    // 세션 내보내기가 `#` 로 바뀌었다(§6.1). 그 결과를 그대로 붙여넣는 것이 왕복의 기본
+    // 경로이므로, 제목을 못 읽으면 이름·요일이 조용히 비어버린다.
+    let markdown = """
+    # 2026-08-31 (월) · 가슴
+
+    - 루틴: 월요일 가슴
+
+    | 종목 | 목표 | 1 | 평균 휴식 |
+    | --- | --- | --- | --- |
+    | 벤치프레스 | 80kg × 5 | ✅ | |
+    """
+    let result = RoutineMarkdownImporter.parse(markdown)
+    #expect(result.routine.title == "가슴")
+    #expect(result.routine.category == "가슴")
+    #expect(result.routine.weekdayMask == Weekday.monday.bit)
+}
+
+@Test("날짜 # 아래 부위 ## 로 나뉜 노트는 부위 쪽을 이름으로 쓴다")
+func metadataPrefersLevelTwoHeading() {
+    let markdown = """
+    # 2026-08-31 (월)
+
+    ## 가슴
+
+    | 종목 | 목표 | 세트 |
+    | --- | --- | --- |
+    | 벤치프레스 | 80kg × 5 | 5 |
+    """
+    let result = RoutineMarkdownImporter.parse(markdown)
+    #expect(result.routine.title == "가슴")
+}
+
 @Test("- 부위: 가 없으면 카테고리가 비어 미리보기에서 지정 대상이 된다")
 func metadataLeavesCategoryEmptyWhenBulletMissing() {
     let markdown = """

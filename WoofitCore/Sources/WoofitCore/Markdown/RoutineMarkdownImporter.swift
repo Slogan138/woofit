@@ -226,10 +226,14 @@ private struct ParsedMetadata {
 
 /// 제목, `- 부위:`, `- 반복:` 을 읽는다. `- 반복:` 이 없으면 제목의 요일을 추론한다.
 private func parseMetadata(lines: [String]) -> ParsedMetadata {
-    guard let headerLine = lines.first(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("## ") }) else {
+    // 세션은 `#`, 루틴은 `##` 로 내보낸다. 어느 쪽을 붙여넣어도 이름과 요일을 읽어야
+    // 왕복이 성립한다(§6.5). `##` 를 먼저 찾는 것은 `# 날짜` 아래 `## 부위` 로 나뉜
+    // 노트에서 부위 쪽이 루틴 이름에 가깝기 때문이다.
+    guard let headerLine = lines.first(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("## ") })
+        ?? lines.first(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("# ") }) else {
         return ParsedMetadata(title: "", category: "", weekdayMask: 0)
     }
-    let headerText = String(headerLine.trimmingCharacters(in: .whitespaces).dropFirst(3))
+    let headerText = String(headerLine.trimmingCharacters(in: .whitespaces).drop(while: { $0 == "#" }))
         .trimmingCharacters(in: .whitespaces)
     let (headerTitle, headerCategory) = splitHeaderText(headerText)
 
