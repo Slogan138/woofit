@@ -120,3 +120,76 @@ func recordedSetsArrive() throws {
     let merged = try #require(try target.fetch(FetchDescriptor<WorkoutSession>()).first)
     #expect(merged.recordedSetCount == 1)
 }
+
+// MARK: - 옛 컨텍스트 재병합 (F-8, F-5)
+
+/// `updateApplicationContext` 로 받은 것은 상대 기기에 계속 남아 있고, 앱이 앞으로 나올
+/// 때마다(`consumeReceivedContext`) 다시 읽힌다. **손목을 올릴 때마다 같은 옛 스냅샷이
+/// 병합된다**는 뜻이라, 그 병합이 지금 진행 중인 세션을 건드리면 안 된다.
+
+@MainActor
+@Test("끝난 세션 스냅샷이 도착해도 진행 중인 세션은 중단되지 않는다")
+func finishedSnapshotDoesNotAbandonLiveSession() throws {
+    let container = try makeContainer()
+    let context = container.mainContext
+
+    // 폰이 마지막으로 보낸 컨텍스트가 이미 끝난 세션일 수 있다.
+    let previous = startedSession(named: "아침 가슴", in: context)
+    for set in previous.allSets { set.markSuccess() }
+    previous.finish()
+    let stale = SessionSnapshotPayload.make(for: previous)
+
+    let live = startedSession(named: "저녁 가슴", in: context)
+
+    try SyncMerger.mergeInProgress(stale, into: context)
+
+    #expect(live.state == .inProgress)
+}
+
+@MainActor
+@Test("먼저 시작한 세션이 도착해도 나중에 시작한 진행 중 세션이 이긴다")
+func olderInProgressSnapshotDoesNotAbandonNewerSession() throws {
+    let container = try makeContainer()
+    let context = container.mainContext
+    let routine = Routine(name: "가슴", category: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 3, weight: 40, reps: 10)
+
+    let earlier = WorkoutSession.start(from: routine, at: Date().addingTimeInterval(-3_600))
+    context.insert(earlier)
+    let payload = SessionSnapshotPayload.make(for: earlier)
+
+    let later = WorkoutSession.start(from: routine)
+    context.insert(later)
+
+    try SyncMerger.mergeInProgress(payload, into: context)
+
+    #expect(later.state == .inProgress)
+    #expect(earlier.state == .inProgress)
+}
+
+@MainActor
+@Test("옛 컨텍스트를 다시 병합해도 재던 휴식이 멈추지 않는다")
+func staleContextKeepsRestRunning() throws {
+    // 손목을 내렸다 올리면 휴식 타이머가 리셋되던 버그. 세션이 중단 처리되면서
+    // `abandon()` 이 휴식 측정을 함께 끝냈고, 다음 세트를 기록하면 `reopen()` 으로
+    // 되살아나 세션은 멀쩡해 보이고 타이머만 사라진 것처럼 보였다(F-5).
+    let container = try makeContainer()
+    let context = container.mainContext
+
+    let previous = startedSession(named: "아침 가슴", in: context)
+    for set in previous.allSets { set.markSuccess() }
+    previous.finish()
+    let stale = SessionSnapshotPayload.make(for: previous)
+
+    let live = startedSession(named: "저녁 가슴", in: context)
+    let runner = SessionRunner(session: live)
+    let now = Date()
+    runner.recordSuccess(for: live.allSets[0], at: now)
+    runner.toggleRest(at: now.addingTimeInterval(2))
+
+    try SyncMerger.mergeInProgress(stale, into: context)
+
+    #expect(runner.restingSet != nil)
+    #expect(live.allSets[0].restSeconds == nil)
+}

@@ -41,6 +41,13 @@ public enum SyncMerger {
     /// **남아 있는 다른 진행 중 세션은 지우지 않고 중단으로 돌린다.** 두 기기에서 동시에
     /// 시작하는 일은 없다는 전제지만, 어긋났을 때 기록이 조용히 사라지는 것이 이 앱에서
     /// 가장 나쁜 결과다. 중단으로 남겨두면 기록 목록에서 확인하고 지울 수 있다.
+    ///
+    /// **중단시킬 수 있는 것은 더 먼저 시작한 세션뿐이다**(PRD §8 나중 시작이 이긴다).
+    /// `updateApplicationContext` 는 마지막에 보낸 것이 상대 기기에 계속 남아 있고,
+    /// 앱이 앞으로 나올 때마다 그것을 다시 읽는다. 이 조건이 없으면 손목을 올릴 때마다
+    /// 폰의 옛 컨텍스트가 지금 진행 중인 세션을 중단시킨다 — 그때 휴식 측정도 함께
+    /// 멈춰서, 다음 세트를 기록하면 `reopen()` 으로 조용히 되살아나 타이머만 리셋된
+    /// 것처럼 보였다(F-5).
     public static func mergeInProgress(
         _ payload: SessionSnapshotPayload,
         into context: ModelContext,
@@ -48,8 +55,13 @@ public enum SyncMerger {
     ) throws {
         try merge(payload, into: context)
 
+        // 끝난 세션 스냅샷은 "지금 어느 세션이 살아있는가"를 말해주지 않는다.
+        guard payload.state == .inProgress else { return }
+
         for session in try context.fetch(FetchDescriptor<WorkoutSession>())
-        where session.state == .inProgress && session.id != payload.sessionID {
+        where session.state == .inProgress
+            && session.id != payload.sessionID
+            && session.startedAt < payload.startedAt {
             session.abandon(at: date)
         }
     }

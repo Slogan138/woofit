@@ -37,6 +37,11 @@ public final class WatchSyncService: NSObject {
     /// **저장이 끝난 뒤에 대입한다** — 화면이 곧바로 저장소를 다시 읽기 때문이다.
     public private(set) var latestInProgressSession: SessionSnapshotPayload?
 
+    /// 마지막으로 반영한 컨텍스트. 같은 것을 다시 병합하지 않기 위해 들고 있는다 —
+    /// `receivedApplicationContext` 는 계속 남아 있고 앱이 앞으로 나올 때마다 읽기 때문이다.
+    private var mergedRoutinesData: Data?
+    private var mergedInProgressData: Data?
+
     /// `.notActivated` 면 아직 `activate()` 가 끝나지 않은 것이다 — "워치 없음"과 구분해야 한다(리뷰 지적 ③).
     public var activationState: WCSessionActivationState { session.activationState }
 
@@ -197,6 +202,12 @@ public final class WatchSyncService: NSObject {
     /// **두 키를 독립적으로 처리한다.** 워치가 보내는 컨텍스트에는 루틴이 없고, 폰이 보내는
     /// 컨텍스트에는 둘 다 들어 있다. 하나가 비었다고 먼저 빠져나오면 나머지를 놓친다.
     private func handleApplicationContext(routinesData: Data?, inProgressData: Data?) {
+        // 이미 반영한 것과 같으면 아무것도 하지 않는다. 루틴 병합은 전체 삭제 후 재생성이라
+        // 손목을 올릴 때마다 치르기에는 비싸다.
+        guard routinesData != mergedRoutinesData || inProgressData != mergedInProgressData else { return }
+        mergedRoutinesData = routinesData
+        mergedInProgressData = inProgressData
+
         // **화면과 같은 컨텍스트에 반영한다.** 별도 컨텍스트에 저장하면 열려 있는
         // 세션 화면이 이미 들고 있는 객체가 즉시 갱신되지 않아, 상대가 기록한 세트가
         // 화면에 안 나타난다(F-8). 이 타입은 `@MainActor` 라 `mainContext` 를 써도 안전하다.

@@ -129,6 +129,13 @@ public extension WorkoutSession {
         return all[(index + 1)...].first
     }
 
+    /// 가장 최근에 기록한 세트. 앱이 다시 뜬 뒤에도 "직전 세트의 휴식"(F-5)과
+    /// "직전 기록 되돌리기"(F-3)를 이어가려면 메모리가 아니라 저장소에서 찾아야 한다.
+    var lastRecordedSet: SessionSet? {
+        allSets.compactMap { set in set.recordedAt.map { (set, $0) } }
+            .max { $0.1 < $1.1 }?.0
+    }
+
     /// 측정 중인 휴식이 있으면 돌려준다. 세션 복원 시 이 값으로 타이머를 되살린다.
     var restingSet: SessionSet? {
         allSets.first { $0.restStartedAt != nil }
