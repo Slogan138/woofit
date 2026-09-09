@@ -683,3 +683,26 @@ func restoringSessionKeepsRestingTimerRunning() throws {
     #expect(restoredRunner.restingSet?.id == target.id)
     #expect(restoredRunner.restingSet?.restStartedAt == startedAt)
 }
+
+@MainActor
+@Test("앱이 다시 떠도 화면 탭으로 직전 세트의 휴식을 시작할 수 있다")
+func restStartsAfterRunnerIsRecreated() throws {
+    // 워치는 손목을 내리면 앱이 내려가고, 다시 뜨면 저장소에서 세션을 복원해 러너를
+    // 새로 만든다. 직전 기록을 메모리에만 두면 그 뒤로 탭이 아무 일도 하지 않는다(F-5).
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+    let routine = Routine(name: "가슴", category: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 3, weight: 40, reps: 10)
+    let session = WorkoutSession.start(from: routine)
+    context.insert(session)
+
+    let now = Date()
+    SessionRunner(session: session).recordSuccess(for: session.allSets[0], at: now)
+
+    let restored = SessionRunner(session: session)
+    #expect(restored.lastRecordedSet?.id == session.allSets[0].id)
+
+    restored.toggleRest(at: now.addingTimeInterval(3))
+    #expect(restored.restingSet?.id == session.allSets[0].id)
+}

@@ -45,6 +45,9 @@ public final class SessionRunner: Identifiable, Hashable {
         self.lastRecords = lastRecords
         self.focusedSet = session.nextPendingSet
         self.phase = session.currentExercise.map(RunnerPhase.recording) ?? .finished
+        // 앱이 다시 뜬 경우다. 여기서 복원하지 않으면 화면을 탭해도 휴식이 시작되지
+        // 않는다 — `toggleRest` 가 이 값에 기대기 때문이다(F-5).
+        self.lastRecordedSet = session.lastRecordedSet
         // refreshPhase 는 .finished 판정과 session.finish() 를 함께 하지만, 여기서는
         // phase 만 계산했다. 시작하자마자 끝난 세션(예: 종목이 0개인 루틴)을 이 경로로
         // 놓치면 state 가 inProgress 로 남아 복원 대상에 계속 잡힌다.
