@@ -204,3 +204,51 @@ func recordingClearsNudge() throws {
 
     #expect(SessionLifetime.nudge(idleSince: session.lastActivityAt, at: now) == .none)
 }
+
+// MARK: - 안내 임계값 설정 (F-3)
+
+@Test("설정한 임계값을 그대로 쓴다")
+func nudgeUsesConfiguredThresholds() {
+    let thresholds = NudgeThresholds(askMinutes: 10, offerEndMinutes: 30)
+
+    #expect(SessionLifetime.nudge(idleSince: noon, at: noon.addingTimeInterval(9 * 60), thresholds: thresholds) == .none)
+    #expect(SessionLifetime.nudge(idleSince: noon, at: noon.addingTimeInterval(10 * 60), thresholds: thresholds) == .asking)
+    #expect(SessionLifetime.nudge(idleSince: noon, at: noon.addingTimeInterval(30 * 60), thresholds: thresholds) == .offeringEnd)
+}
+
+@Test("0 분은 그 안내를 쓰지 않는다는 뜻이다")
+func zeroDisablesNudge() {
+    let askOnly = NudgeThresholds(askMinutes: 20, offerEndMinutes: 0)
+    #expect(SessionLifetime.nudge(idleSince: noon, at: noon.addingTimeInterval(3 * 3_600), thresholds: askOnly) == .asking)
+
+    let off = NudgeThresholds(askMinutes: 0, offerEndMinutes: 0)
+    #expect(SessionLifetime.nudge(idleSince: noon, at: noon.addingTimeInterval(3 * 3_600), thresholds: off) == .none)
+}
+
+@Test("끈 안내는 다시 그릴 시각도 만들지 않는다")
+func disabledNudgeHasNoSchedule() {
+    // `TimelineView` 가 쓰는 값이라, 끈 임계값이 남아 있으면 아무 일도 없는 시각에
+    // 화면이 다시 그려진다(PRD §9 배터리).
+    let off = NudgeThresholds(askMinutes: 0, offerEndMinutes: 0)
+    #expect(SessionLifetime.nudgeDates(idleSince: noon, thresholds: off) == [noon])
+}
+
+@Test("저장한 적이 없으면 기본값 20·45분이다")
+func storedFallsBackToDefault() throws {
+    // UserDefaults 는 없는 키에 0 을 돌려준다. 그것을 "끔"으로 읽으면 아무도 설정한
+    // 적 없는데 안내가 꺼진 채로 시작된다.
+    let defaults = try #require(UserDefaults(suiteName: "NudgeThresholdsTests.empty"))
+    defaults.removePersistentDomain(forName: "NudgeThresholdsTests.empty")
+
+    #expect(NudgeThresholds.stored(in: defaults) == .default)
+}
+
+@Test("저장한 값을 그대로 읽는다")
+func storedRoundTrips() throws {
+    let defaults = try #require(UserDefaults(suiteName: "NudgeThresholdsTests.roundTrip"))
+    defaults.removePersistentDomain(forName: "NudgeThresholdsTests.roundTrip")
+
+    NudgeThresholds(askMinutes: 15, offerEndMinutes: 0).save(to: defaults)
+
+    #expect(NudgeThresholds.stored(in: defaults) == NudgeThresholds(askMinutes: 15, offerEndMinutes: 0))
+}

@@ -7,12 +7,13 @@ import WoofitCore
 /// `TimelineView(.explicit:)` 로 **바뀌는 두 시각에만** 다시 그린다(PRD §9 배터리).
 struct SessionNudgeView: View {
     let idleSince: Date
+    let thresholds: NudgeThresholds
     let onKeepGoing: () -> Void
     let onEnd: () -> Void
 
     var body: some View {
-        TimelineView(.explicit(SessionLifetime.nudgeDates(idleSince: idleSince))) { context in
-            let nudge = SessionLifetime.nudge(idleSince: idleSince, at: context.date)
+        TimelineView(.explicit(SessionLifetime.nudgeDates(idleSince: idleSince, thresholds: thresholds))) { context in
+            let nudge = SessionLifetime.nudge(idleSince: idleSince, at: context.date, thresholds: thresholds)
             content(for: nudge)
                 // 화면을 안 보고 있을 때도 알아야 한다. 기록 햅틱과 구분되게 경고음을 쓴다.
                 .sensoryFeedback(.warning, trigger: nudge) { _, new in new != .none }
@@ -49,7 +50,7 @@ struct SessionNudgeView: View {
 
 #Preview {
     VStack(spacing: 12) {
-        SessionNudgeView(idleSince: Date().addingTimeInterval(-25 * 60), onKeepGoing: {}, onEnd: {})
-        SessionNudgeView(idleSince: Date().addingTimeInterval(-50 * 60), onKeepGoing: {}, onEnd: {})
+        SessionNudgeView(idleSince: Date().addingTimeInterval(-25 * 60), thresholds: .default, onKeepGoing: {}, onEnd: {})
+        SessionNudgeView(idleSince: Date().addingTimeInterval(-50 * 60), thresholds: .default, onKeepGoing: {}, onEnd: {})
     }
 }

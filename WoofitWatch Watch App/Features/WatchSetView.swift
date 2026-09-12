@@ -22,6 +22,15 @@ struct WatchSetView: View {
     /// 「계속」을 누른 시각. 누르고도 안내가 곧바로 다시 뜨면 안 된다(F-3).
     @State private var keptGoingAt: Date?
 
+    // 설정에서 바꾼 값이 그대로 반영되도록 저장소를 직접 읽는다. 워치는 폰이 내려보낸
+    // 값을 같은 키에 얹어두므로 읽는 코드가 양쪽 같다(F-3).
+    @AppStorage(NudgeThresholds.askKey) private var askMinutes = NudgeThresholds.default.askMinutes
+    @AppStorage(NudgeThresholds.offerEndKey) private var offerEndMinutes = NudgeThresholds.default.offerEndMinutes
+
+    private var nudgeThresholds: NudgeThresholds {
+        NudgeThresholds(askMinutes: askMinutes, offerEndMinutes: offerEndMinutes)
+    }
+
     @ScaledMetric(relativeTo: .largeTitle) private var metricSize = Typography.heroMetricSize
 
     var body: some View {
@@ -169,6 +178,7 @@ struct WatchSetView: View {
 
                     SessionNudgeView(
                         idleSince: idleSince,
+                    thresholds: nudgeThresholds,
                         onKeepGoing: { keptGoingAt = Date() },
                         onEnd: { isConfirmingAbandon = true }
                     )

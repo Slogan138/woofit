@@ -17,6 +17,7 @@ public final class WatchSyncService: NSObject {
     // 상수 문자열이라 격리와 무관하지만, 델리게이트 콜백(nonisolated)에서 그대로 읽어야 해서 명시한다.
     private nonisolated static let routinesKey = "routines"
     private nonisolated static let inProgressSessionKey = "inProgressSession"
+    private nonisolated static let thresholdsKey = "nudgeThresholds"
     private nonisolated static let setResultKey = "setResult"
     private nonisolated static let sessionSnapshotKey = "sessionSnapshot"
     private nonisolated static let logger = Logger(subsystem: "io.jwp.woofit", category: "WatchSync")
@@ -41,6 +42,7 @@ public final class WatchSyncService: NSObject {
     /// `receivedApplicationContext` 는 계속 남아 있고 앱이 앞으로 나올 때마다 읽기 때문이다.
     private var mergedRoutinesData: Data?
     private var mergedInProgressData: Data?
+    private var mergedThresholdsData: Data?
 
     /// `.notActivated` 면 아직 `activate()` 가 끝나지 않은 것이다 — "워치 없음"과 구분해야 한다(리뷰 지적 ③).
     public var activationState: WCSessionActivationState { session.activationState }
@@ -90,6 +92,16 @@ public final class WatchSyncService: NSObject {
                 RoutinePayload.make(from: routine, lastRecords: try LastRecordLookup.fetchAll(for: routine, in: context))
             }
             try sendRoutines(payloads)
+        }
+    }
+
+    /// 세션 안내 임계값을 워치로 내려보낸다(F-3). 설정 화면은 폰에만 있으므로
+    /// 워치는 이 경로로만 값을 받는다 — 받지 못하면 기본값(20·45분)을 쓴다.
+    public func sendNudgeThresholds(_ thresholds: NudgeThresholds) throws {
+        try track {
+            var context = session.applicationContext
+            context[Self.thresholdsKey] = try JSONEncoder().encode(thresholds)
+            try session.updateApplicationContext(context)
         }
     }
 
@@ -183,6 +195,7 @@ public final class WatchSyncService: NSObject {
         consumeReceivedContext()
         #if os(iOS)
         try? pushRoutines(in: container.mainContext)
+        try? sendNudgeThresholds(.stored())
         #endif
     }
 
@@ -195,18 +208,29 @@ public final class WatchSyncService: NSObject {
         guard !context.isEmpty else { return }
         handleApplicationContext(
             routinesData: context[Self.routinesKey] as? Data,
-            inProgressData: context[Self.inProgressSessionKey] as? Data
+            inProgressData: context[Self.inProgressSessionKey] as? Data,
+            thresholdsData: context[Self.thresholdsKey] as? Data
         )
     }
 
     /// **두 키를 독립적으로 처리한다.** 워치가 보내는 컨텍스트에는 루틴이 없고, 폰이 보내는
     /// 컨텍스트에는 둘 다 들어 있다. 하나가 비었다고 먼저 빠져나오면 나머지를 놓친다.
-    private func handleApplicationContext(routinesData: Data?, inProgressData: Data?) {
+    private func handleApplicationContext(routinesData: Data?, inProgressData: Data?, thresholdsData: Data?) {
         // 이미 반영한 것과 같으면 아무것도 하지 않는다. 루틴 병합은 전체 삭제 후 재생성이라
         // 손목을 올릴 때마다 치르기에는 비싸다.
-        guard routinesData != mergedRoutinesData || inProgressData != mergedInProgressData else { return }
+        guard routinesData != mergedRoutinesData
+            || inProgressData != mergedInProgressData
+            || thresholdsData != mergedThresholdsData else { return }
         mergedRoutinesData = routinesData
         mergedInProgressData = inProgressData
+        mergedThresholdsData = thresholdsData
+
+        // 화면이 `@AppStorage` 로 읽는 자리에 그대로 얹는다. 별도 상태를 두면 폰과 워치의
+        // 읽는 경로가 갈라진다(F-3).
+        if let thresholdsData,
+           let thresholds = try? JSONDecoder().decode(NudgeThresholds.self, from: thresholdsData) {
+            thresholds.save()
+        }
 
         // **화면과 같은 컨텍스트에 반영한다.** 별도 컨텍스트에 저장하면 열려 있는
         // 세션 화면이 이미 들고 있는 객체가 즉시 갱신되지 않아, 상대가 기록한 세트가
@@ -281,8 +305,13 @@ extension WatchSyncService: WCSessionDelegate {
     public nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         let routinesData = applicationContext[Self.routinesKey] as? Data
         let inProgressData = applicationContext[Self.inProgressSessionKey] as? Data
+        let thresholdsData = applicationContext[Self.thresholdsKey] as? Data
         Task { @MainActor in
-            self.handleApplicationContext(routinesData: routinesData, inProgressData: inProgressData)
+            self.handleApplicationContext(
+                routinesData: routinesData,
+                inProgressData: inProgressData,
+                thresholdsData: thresholdsData
+            )
         }
     }
 }
