@@ -10,6 +10,8 @@ struct WoofitApp: App {
     private let syncService: WatchSyncService
     /// 잠금화면·다이내믹 아일랜드 현황(F-16). 수신 경로와 화면 양쪽에서 쓰므로 앱이 하나만 만든다.
     private let liveActivity: LiveActivityController
+    /// 세션 미종료 알림(F-18). 잠금화면과 같은 신호를 쓴다.
+    private let sessionNotifications: SessionNotificationScheduler
 
     /// 앱이 앞으로 나올 때마다 이미 도착해 있는 컨텍스트를 읽는다. 백그라운드에 있는
     /// 동안 온 것은 delegate 로 오지 않는다(F-8).
@@ -24,7 +26,13 @@ struct WoofitApp: App {
             fatalError("SwiftData 저장소를 열지 못했습니다: \(error)")
         }
         liveActivity = LiveActivityController()
-        syncService = WatchSyncService(container: container, liveActivity: liveActivity)
+        sessionNotifications = SessionNotificationScheduler(container: container)
+        syncService = WatchSyncService(
+            container: container,
+            presences: [liveActivity, sessionNotifications]
+        )
+        sessionNotifications.syncService = syncService
+        sessionNotifications.register()
         syncService.activate()
     }
 
@@ -34,6 +42,7 @@ struct WoofitApp: App {
         }
         .modelContainer(container)
         .environment(\.liveActivity, liveActivity)
+        .environment(\.sessionNotifications, sessionNotifications)
         .environment(\.watchSyncService, syncService)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }

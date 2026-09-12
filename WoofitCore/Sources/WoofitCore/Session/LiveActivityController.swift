@@ -13,12 +13,12 @@ import os
 /// **열려 있는 활동을 들고 있지 않고 그때그때 조회한다.** 시스템이 주인이라 앱이
 /// 죽었다 살아나도 잠금화면에는 그대로 남아 있는데, 참조를 들고 있으면 그 경우를
 /// 놓쳐 활동이 둘이 된다 — `recoverActiveWorkoutSession`(F-14)과 같은 이유다.
-public final class LiveActivityController: Sendable {
+public final class LiveActivityController: SessionPresence, Sendable {
     private nonisolated static let logger = Logger(subsystem: "io.jwp.woofit", category: "LiveActivity")
 
     /// 갱신이 이만큼 끊기면 시스템이 카드를 오래된 것으로 표시한다. 세션 하나가 평균
     /// 50분이라(D14) 그보다 넉넉히 잡는다.
-    private static let staleAfter: TimeInterval = 2 * 60 * 60
+    private nonisolated static let staleAfter: TimeInterval = 2 * 60 * 60
 
     public init() {}
 
@@ -26,6 +26,11 @@ public final class LiveActivityController: Sendable {
     /// 세션이 끝났거나, 중단됐거나, 남은 세트가 없는 경우다.
     ///
     /// `WorkoutSession` 은 `Sendable` 이 아니므로 이 메서드에서 값으로 바꿔 넘긴다.
+    @MainActor
+    public func sessionDidChange(to session: WorkoutSession?) async {
+        await refresh(for: session)
+    }
+
     @MainActor
     public func refresh(for session: WorkoutSession?) async {
         guard let session, let snapshot = SessionLiveSnapshot.make(for: session) else {
@@ -35,7 +40,9 @@ public final class LiveActivityController: Sendable {
         await apply(snapshot, sessionID: session.id)
     }
 
-    public func apply(_ snapshot: SessionLiveSnapshot, sessionID: UUID) async {
+    /// `nonisolated` 인 이유 — `SessionPresence` 가 `@MainActor` 라 이 타입 전체가 따라가는데,
+    /// `Activity` 는 `Sendable` 이 아니어서 격리된 컨텍스트에 묶이면 `await` 를 넘지 못한다.
+    public nonisolated func apply(_ snapshot: SessionLiveSnapshot, sessionID: UUID) async {
         // 사용자가 설정에서 꺼둔 경우. 기능이 없는 것처럼 조용히 넘어간다(F-14 권한과 같은 방식).
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         // **끝내지 못한 카드가 최신인 척하지 않게 한다.** 상대 기기에서 중단했는데 폰이
@@ -66,11 +73,13 @@ public final class LiveActivityController: Sendable {
 
     /// 즉시 사라지게 한다. 기본 정책은 잠금화면에 한동안 남겨두는 것인데, 운동이 끝난
     /// 뒤에도 남아 있으면 "아직 진행 중"으로 읽힌다 — 이 앱이 그동안 겪은 문제의 모양이다(D14).
-    public func end() async {
-        let running = Activity<SessionActivityAttributes>.activities
-        guard !running.isEmpty else { return }
-        Self.logger.info("Live Activity \(running.count, privacy: .public)개를 끝낸다")
-        for activity in running {
+    public nonisolated func end() async {
+        // **지역 변수로 받지 않는다.** `Activity` 는 `Sendable` 이 아니라, 격리된
+        // 컨텍스트에 묶인 값을 `await` 너머로 넘기면 Swift 6 이 막는다.
+        let count = Activity<SessionActivityAttributes>.activities.count
+        guard count > 0 else { return }
+        Self.logger.info("Live Activity \(count, privacy: .public)개를 끝낸다")
+        for activity in Activity<SessionActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
