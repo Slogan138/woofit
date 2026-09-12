@@ -8,6 +8,7 @@ struct WatchRootView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.watchSyncService) private var syncService
+    @Environment(\.workoutSessionController) private var workoutSessionController
     @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator = WatchSessionCoordinator()
 
@@ -65,11 +66,11 @@ struct WatchRootView: View {
         .task {
             // 앱이 꺼져 있는 동안 폰에서 시작한 세션은 활성화 시점에 저장소로 들어온다.
             syncService?.consumeReceivedContext()
-            coordinator.restoreIfNeeded(in: modelContext)
+            coordinator.restoreIfNeeded(in: modelContext, workoutSessionController: workoutSessionController)
         }
         // 앱이 이미 떠 있는데 세션이 도착하는 경우는 이 값의 변화로만 알 수 있다.
         .onChange(of: syncService?.latestInProgressSession) { _, payload in
-            coordinator.restoreIfNeeded(in: modelContext)
+            coordinator.restoreIfNeeded(in: modelContext, workoutSessionController: workoutSessionController)
             if let runner = coordinator.activeRunner, runner.id == payload?.sessionID {
                 runner.refreshFromRemoteChange()
                 // 상대가 끝냈으면 이쪽 화면도 닫는다. 요약은 끝낸 기기가 보여준다.
@@ -78,7 +79,7 @@ struct WatchRootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
-            coordinator.restoreIfNeeded(in: modelContext)
+            coordinator.restoreIfNeeded(in: modelContext, workoutSessionController: workoutSessionController)
         }
     }
 }

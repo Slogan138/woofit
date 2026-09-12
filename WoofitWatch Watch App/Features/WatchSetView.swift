@@ -19,6 +19,8 @@ struct WatchSetView: View {
     @State private var recordFeedback = RecordFeedback()
     /// 종료 처리를 한 번으로 묶는다. 아래 `finishSession()` 참고.
     @State private var didFinishSession = false
+    /// 「계속」을 누른 시각. 누르고도 안내가 곧바로 다시 뜨면 안 된다(F-3).
+    @State private var keptGoingAt: Date?
 
     @ScaledMetric(relativeTo: .largeTitle) private var metricSize = Typography.heroMetricSize
 
@@ -165,6 +167,12 @@ struct WatchSetView: View {
                         WatchRestView(startedAt: startedAt)
                     }
 
+                    SessionNudgeView(
+                        idleSince: idleSince,
+                        onKeepGoing: { keptGoingAt = Date() },
+                        onEnd: { isConfirmingAbandon = true }
+                    )
+
                     Text("\(runner.session.completedExerciseCount)/\(runner.session.totalExerciseCount) 종목 · \(runner.session.recordedSetCount)/\(runner.session.totalSetCount) 세트")
                         .font(Typography.secondary)
                         .foregroundStyle(.secondary)
@@ -186,6 +194,11 @@ struct WatchSetView: View {
             // WatchRestView 가 TimelineView 로 표시만 갱신한다.
             .onTapGesture { runner.toggleRest() }
         }
+    }
+
+    /// 안내 판정의 기준 시각. 「계속」을 눌렀으면 그 시각부터 다시 센다(계획 21).
+    private var idleSince: Date {
+        max(runner.session.lastActivityAt, keptGoingAt ?? .distantPast)
     }
 
     /// 이 화면의 주인공. 목표 무게를 가장 크게 두고 횟수는 그 절반으로 딸려 붙인다 —
