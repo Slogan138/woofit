@@ -11,6 +11,10 @@ final class SessionCoordinator {
     var activeRunner: SessionRunner?
 
     /// 루틴에서 세션을 새로 시작한다. 워치가 곧바로 이어받도록 진행 상태도 함께 보낸다(F-8).
+    /// 폰에서 세션을 시작하면 워치 앱도 함께 띄운다(F-17). `WatchConnectivity` 로는
+    /// 워치 앱을 실행시킬 수 없어, 지금까지는 워치를 손으로 열어야 이어받았다.
+    var watchAppLauncher: WatchAppLauncher?
+
     func start(from routine: Routine, in context: ModelContext, syncService: WatchSyncService? = nil) {
         // 남아 있던 진행 중 세션을 먼저 정리한다(계획 21).
         _ = try? SessionLifetime.closeOpenSessions(in: context)
@@ -21,6 +25,13 @@ final class SessionCoordinator {
             lastRecords: (try? LastRecordLookup.fetchAll(for: session, in: context)) ?? [:]
         )
         push(session, to: syncService)
+        // 진행 상태를 먼저 보낸 뒤 띄운다. 워치 앱이 뜨자마자 읽을 컨텍스트가 있어야
+        // 곧바로 그 세션을 연다(F-8).
+        // 기록할 세트가 없으면 띄우지 않는다. 워치가 운동 세션만 열고 끝낼 일이 없어
+        // 유령 운동이 남는다 — 계획 17 에서 같은 자리에 났던 버그다.
+        if session.hasRecordableSets, let watchAppLauncher {
+            Task { await watchAppLauncher.launch() }
+        }
     }
 
     /// 진행 상태를 상대 기기로 보낸다. 시작·종료 두 지점에서만 부르면 충분하다 —

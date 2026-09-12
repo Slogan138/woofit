@@ -8,6 +8,7 @@ struct RootView: View {
     @Environment(\.liveActivity) private var liveActivity
     @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator = SessionCoordinator()
+    @State private var watchAppLauncher = WatchAppLauncher()
 
     var body: some View {
         @Bindable var coordinator = coordinator
@@ -25,6 +26,7 @@ struct RootView: View {
         }
         .environment(coordinator)
         .task {
+            coordinator.watchAppLauncher = watchAppLauncher
             coordinator.restoreIfNeeded(in: modelContext)
             try? syncService?.pushRoutines(in: modelContext)
         }
