@@ -252,3 +252,63 @@ func storedRoundTrips() throws {
 
     #expect(NudgeThresholds.stored(in: defaults) == NudgeThresholds(askMinutes: 15, offerEndMinutes: 0))
 }
+
+// MARK: - 잠금화면 현황 (F-16)
+
+@MainActor
+@Test("현황은 지금 기록할 세트를 가리킨다")
+func liveSnapshotPointsAtCurrentSet() throws {
+    let container = try makeContainer()
+    let session = session(named: "월요일 가슴", startedAt: noon, in: container.mainContext)
+    session.allSets[0].markSuccess(at: noon)
+
+    let snapshot = try #require(SessionLiveSnapshot.make(for: session))
+
+    #expect(snapshot.routineName == "월요일 가슴")
+    #expect(snapshot.exerciseName == "벤치프레스")
+    #expect(snapshot.setIndex == 2)
+    #expect(snapshot.setCount == 3)
+    #expect(snapshot.recordedSetCount == 1)
+    #expect(snapshot.totalSetCount == 3)
+    #expect(snapshot.targetWeight == 40)
+    #expect(snapshot.targetReps == 10)
+}
+
+@MainActor
+@Test("휴식 중이면 그 시작 시각이 현황에 담긴다")
+func liveSnapshotCarriesRest() throws {
+    // 위젯이 이 값으로 갱신 없이 시간을 흘려보낸다. 없으면 잠금화면의 휴식 시계가 멈춘다.
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    session.allSets[0].markSuccess(at: noon)
+    session.allSets[0].startRest(at: noon.addingTimeInterval(3))
+
+    let snapshot = try #require(SessionLiveSnapshot.make(for: session))
+
+    #expect(snapshot.restStartedAt == noon.addingTimeInterval(3))
+    // 휴식은 방금 끝낸 세트에 붙어 있고 초점은 이미 다음 세트다(F-5).
+    #expect(snapshot.setIndex == 2)
+}
+
+@MainActor
+@Test("끝난 세션은 보여줄 현황이 없다")
+func liveSnapshotIsNilWhenFinished() throws {
+    // `nil` 은 "Live Activity 를 끝내라"는 뜻이다. 남아 있으면 운동이 끝났는데도
+    // 잠금화면에서 진행 중으로 읽힌다(D14).
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    for set in session.allSets { set.markSuccess(at: noon) }
+    session.finish(at: noon)
+
+    #expect(SessionLiveSnapshot.make(for: session) == nil)
+}
+
+@MainActor
+@Test("중단된 세션도 보여줄 현황이 없다")
+func liveSnapshotIsNilWhenAbandoned() throws {
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    session.abandon(at: noon)
+
+    #expect(SessionLiveSnapshot.make(for: session) == nil)
+}

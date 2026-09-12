@@ -59,11 +59,49 @@ public final class WatchSyncService: NSObject {
     public var isCompanionAppInstalled: Bool { session.isCompanionAppInstalled }
     #endif
 
+    #if canImport(ActivityKit) && os(iOS)
+    /// 수신 경로에서 잠금화면을 갱신하기 위해 들고 있는다(F-16). 생성 시 한 번만 주입되므로
+    /// 콜백처럼 나중에 덮어쓰일 여지가 없다.
+    private let liveActivity: LiveActivityController?
+    #endif
+
+    #if canImport(ActivityKit) && os(iOS)
+    public init(
+        container: ModelContainer,
+        session: WCSession = .default,
+        liveActivity: LiveActivityController? = nil
+    ) {
+        self.container = container
+        self.session = session
+        self.liveActivity = liveActivity
+        super.init()
+        session.delegate = self
+    }
+    #else
     public init(container: ModelContainer, session: WCSession = .default) {
         self.container = container
         self.session = session
         super.init()
         session.delegate = self
+    }
+    #endif
+
+    /// 워치에서 온 변경을 잠금화면에 반영한다. **화면이 아니라 여기서 부른다** —
+    /// 폰이 주머니에 있으면 `onChange` 가 돌지 않는다(계획 22).
+    private func refreshLiveActivity(sessionID: UUID?) {
+        #if canImport(ActivityKit) && os(iOS)
+        guard let liveActivity else { return }
+        let context = container.mainContext
+        let session: WorkoutSession?
+        if let sessionID {
+            var descriptor = FetchDescriptor<WorkoutSession>(predicate: #Predicate { $0.id == sessionID })
+            descriptor.fetchLimit = 1
+            session = try? context.fetch(descriptor).first
+        } else {
+            session = nil
+        }
+        Task { await liveActivity.refresh(for: session) }
+        #endif
     }
 
     public func activate() {
@@ -165,11 +203,13 @@ public final class WatchSyncService: NSObject {
                 let payload = try JSONDecoder().decode(SetResultPayload.self, from: setResultData)
                 try SyncMerger.merge(payload, into: context)
                 try context.save()
+                refreshLiveActivity(sessionID: payload.sessionID)
             }
             if let snapshotData {
                 let payload = try JSONDecoder().decode(SessionSnapshotPayload.self, from: snapshotData)
                 try SyncMerger.merge(payload, into: context)
                 try context.save()
+                refreshLiveActivity(sessionID: payload.sessionID)
             }
         } catch {
             assertionFailure("동기화 수신 실패: \(error)")
@@ -269,7 +309,10 @@ public final class WatchSyncService: NSObject {
             assertionFailure("동기화 저장 실패: \(error)")
             return
         }
-        if let arrived { latestInProgressSession = arrived }
+        if let arrived {
+            latestInProgressSession = arrived
+            refreshLiveActivity(sessionID: arrived.sessionID)
+        }
     }
 }
 
