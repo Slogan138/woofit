@@ -16,6 +16,13 @@ struct SessionRunnerView: View {
     @State private var isConfirmingAbandon = false
     @State private var isShowingExercisePicker = false
     @State private var pendingExport: MarkdownExport?
+    /// 「계속」을 누른 시각. 누르고도 안내가 곧바로 다시 뜨면 안 된다(계획 21).
+    @State private var keptGoingAt: Date?
+
+    /// 안내 판정의 기준 시각.
+    private var idleSince: Date {
+        max(runner.session.lastActivityAt, keptGoingAt ?? .distantPast)
+    }
 
     private var isShowingFullScreenOverlay: Bool {
         if runner.isPaused { return true }
@@ -45,6 +52,12 @@ struct SessionRunnerView: View {
                         .padding(.vertical, 8)
                         .background(ColorRole.rest.opacity(0.14), in: .capsule)
                 }
+
+                SessionNudgeView(
+                    idleSince: idleSince,
+                    onKeepGoing: { keptGoingAt = Date() },
+                    onEnd: { isConfirmingAbandon = true }
+                )
 
                 if let exercise = runner.focusedSet?.exercise {
                     SetListSection(

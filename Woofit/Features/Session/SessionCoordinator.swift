@@ -12,6 +12,8 @@ final class SessionCoordinator {
 
     /// 루틴에서 세션을 새로 시작한다. 워치가 곧바로 이어받도록 진행 상태도 함께 보낸다(F-8).
     func start(from routine: Routine, in context: ModelContext, syncService: WatchSyncService? = nil) {
+        // 남아 있던 진행 중 세션을 먼저 정리한다(계획 21).
+        _ = try? SessionLifetime.closeOpenSessions(in: context)
         let session = WorkoutSession.start(from: routine)
         context.insert(session)
         activeRunner = SessionRunner(

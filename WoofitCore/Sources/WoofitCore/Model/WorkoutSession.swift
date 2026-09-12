@@ -129,6 +129,19 @@ public extension WorkoutSession {
         return all[(index + 1)...].first
     }
 
+    /// 이 세션에서 마지막으로 무언가 일어난 시각. 기록이 하나도 없으면 시작 시각이다.
+    /// **새 저장 프로퍼티를 만들지 않는다** — 필요한 값이 이미 기록 안에 있고, 저장을
+    /// 늘리면 CloudKit 제약(§7)과 동기화 payload 를 함께 손봐야 한다(계획 21).
+    var lastActivityAt: Date { allSets.compactMap(\.recordedAt).max() ?? startedAt }
+
+    /// 지금도 살아 있는 세션인가(PRD D14). 날이 바뀌었으면 끝난 것으로 본다 —
+    /// "오늘 시작한 세션인가"가 사람이 판단하는 기준과 같고, 시간 기준(예: 6시간)은
+    /// 자정 넘어 운동한 경우를 어중간하게 자른다.
+    func isLive(at date: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard state == .inProgress else { return false }
+        return calendar.isDate(lastActivityAt, inSameDayAs: date)
+    }
+
     /// 가장 최근에 기록한 세트. 앱이 다시 뜬 뒤에도 "직전 세트의 휴식"(F-5)과
     /// "직전 기록 되돌리기"(F-3)를 이어가려면 메모리가 아니라 저장소에서 찾아야 한다.
     var lastRecordedSet: SessionSet? {

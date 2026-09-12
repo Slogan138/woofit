@@ -34,6 +34,18 @@ public final class HealthKitWorkoutSession: WorkoutHealthSession {
             return .authorizationDenied
         }
 
+        // 앱이 죽었다 살아난 경우 돌던 세션을 되찾는다. 새로 시작하면 한 번의 운동이
+        // 건강 앱에 둘로 쪼개져 남는다(계획 21). 되찾기 실패는 오류가 아니다 —
+        // 앱이 죽은 지 오래면 운동 세션도 이미 끝나 있고, 그때는 새로 시작하면 된다.
+        if let recovered = try? await healthStore.recoverActiveWorkoutSession() {
+            let builder = recovered.associatedWorkoutBuilder()
+            builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: recovered.workoutConfiguration)
+            self.session = recovered
+            self.builder = builder
+            Self.logger.info("돌고 있던 운동 세션을 되찾았다")
+            return nil
+        }
+
         let configuration = HKWorkoutConfiguration()
         configuration.activityType = .traditionalStrengthTraining
         configuration.locationType = .indoor
