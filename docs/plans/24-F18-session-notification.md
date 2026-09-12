@@ -160,3 +160,32 @@ static func requests(for session: WorkoutSession?, thresholds: NudgeThresholds, 
 
 **알림은 앱을 대신하지 않는다.** 거부해도 앱 안 배너는 그대로 뜬다. 알림이 없으면
 불편할 뿐 기능이 사라지지는 않아야 한다(F-14 권한과 같은 태도).
+
+---
+
+## 구현 메모
+
+### `SessionPresence` 를 뽑았다
+
+잠금화면(F-16)과 알림(F-18)이 **같은 신호를 써야 한다.** 한쪽만 갱신되면 카드는 끝났는데
+알림은 남는 식으로 어긋난다. 그래서 `WatchSyncService` 가 들고 있던 `LiveActivityController`
+단일 참조를 `[any SessionPresence]` 목록으로 바꿨다.
+
+**구현이 둘이 된 시점에 뽑았다**(원칙 1). 하나였을 때는 프로토콜이 없었다.
+
+부수 효과로 `WatchSyncService` 에서 `#if canImport(ActivityKit)` 두 덩이가 사라졌다 —
+프로토콜 자체는 플랫폼을 타지 않는다.
+
+### Swift 6 격리에서 걸린 것
+
+`SessionPresence` 가 `@MainActor` 라(비-`Sendable` 인 `WorkoutSession` 을 넘겨야 한다)
+**적합한 타입 전체가 MainActor 로 따라간다.** `LiveActivityController` 의 `apply`·`end` 가
+그렇게 격리되자, `Sendable` 이 아닌 `Activity` 를 `await` 너머로 넘기지 못해 막혔다.
+두 메서드를 `nonisolated` 로 되돌려 풀었다.
+
+같은 이유로 델리게이트에서 읽는 상수들도 `nonisolated` 여야 한다.
+
+### 권한은 첫 예약 직전에 묻는다
+
+`notDetermined` 일 때만 한 번 요청하고, 거부되면 다시 묻지 않는다. 세트를 기록할 때마다
+예약을 다시 거는 구조라, 그 자리에서 매번 물으면 프롬프트가 반복된다.

@@ -13,3 +13,15 @@ extension EnvironmentValues {
         set { self[LiveActivityKey.self] = newValue }
     }
 }
+
+/// 세션 미종료 알림(F-18). 잠금화면과 같은 자리에서 갱신한다.
+private struct SessionNotificationsKey: EnvironmentKey {
+    static let defaultValue: SessionNotificationScheduler? = nil
+}
+
+extension EnvironmentValues {
+    var sessionNotifications: SessionNotificationScheduler? {
+        get { self[SessionNotificationsKey.self] }
+        set { self[SessionNotificationsKey.self] = newValue }
+    }
+}

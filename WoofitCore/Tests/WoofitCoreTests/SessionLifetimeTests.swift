@@ -312,3 +312,94 @@ func liveSnapshotIsNilWhenAbandoned() throws {
 
     #expect(SessionLiveSnapshot.make(for: session) == nil)
 }
+
+// MARK: - 미종료 알림 예약 (F-18)
+
+@MainActor
+@Test("진행 중 세션이면 20분·45분 두 건을 건다")
+func notificationPlanSchedulesBoth() throws {
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+
+    let scheduled = SessionNotificationPlan.requests(for: session, at: noon.addingTimeInterval(60))
+
+    #expect(scheduled.count == 2)
+    #expect(scheduled[0].nudge == .asking)
+    #expect(scheduled[0].fireDate == noon.addingTimeInterval(20 * 60))
+    #expect(scheduled[1].nudge == .offeringEnd)
+    #expect(scheduled[1].fireDate == noon.addingTimeInterval(45 * 60))
+}
+
+@MainActor
+@Test("예약 시각은 시작이 아니라 마지막 기록 기준이다")
+func notificationPlanUsesLastActivity() throws {
+    // 경과 시간 기준이면 한 시간 넘게 운동하는 날마다 알림이 온다(D14).
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    let recordedAt = noon.addingTimeInterval(70 * 60)
+    session.allSets[0].markSuccess(at: recordedAt)
+
+    let scheduled = SessionNotificationPlan.requests(for: session, at: recordedAt)
+
+    #expect(scheduled.first?.fireDate == recordedAt.addingTimeInterval(20 * 60))
+}
+
+@MainActor
+@Test("임계값이 0 이면 그 알림은 걸지 않는다")
+func notificationPlanHonoursDisabledThreshold() throws {
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+
+    let askOnly = SessionNotificationPlan.requests(
+        for: session,
+        thresholds: NudgeThresholds(askMinutes: 20, offerEndMinutes: 0),
+        at: noon
+    )
+    #expect(askOnly.map(\.nudge) == [.asking])
+
+    let off = SessionNotificationPlan.requests(
+        for: session,
+        thresholds: NudgeThresholds(askMinutes: 0, offerEndMinutes: 0),
+        at: noon
+    )
+    #expect(off.isEmpty)
+}
+
+@MainActor
+@Test("끝난 세션이면 걸 것이 없다")
+func notificationPlanIsEmptyWhenFinished() throws {
+    // 빈 목록은 "전부 지우라"는 뜻이다. 남으면 운동이 끝난 한참 뒤에 알림이 울린다.
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    for set in session.allSets { set.markSuccess(at: noon) }
+    session.finish(at: noon)
+
+    #expect(SessionNotificationPlan.requests(for: session, at: noon).isEmpty)
+}
+
+@Test("세션이 없어도 걸 것이 없다")
+func notificationPlanIsEmptyWithoutSession() {
+    #expect(SessionNotificationPlan.requests(for: nil, at: noon).isEmpty)
+}
+
+@MainActor
+@Test("날이 바뀐 세션은 걸지 않는다")
+func notificationPlanIgnoresStaleSession() throws {
+    let container = try makeContainer()
+    let session = session(named: "어제", startedAt: noon, in: container.mainContext)
+
+    #expect(SessionNotificationPlan.requests(for: session, at: noon.addingTimeInterval(30 * 3_600)).isEmpty)
+}
+
+@MainActor
+@Test("이미 지난 시각은 걸지 않는다")
+func notificationPlanSkipsPastDates() throws {
+    // 앱을 다시 열었을 때 과거 알림이 즉시 울리면, 방금 기록했는데 "아직 운동
+    // 중인가요?"를 받는다.
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+
+    let scheduled = SessionNotificationPlan.requests(for: session, at: noon.addingTimeInterval(25 * 60))
+
+    #expect(scheduled.map(\.nudge) == [.offeringEnd])
+}
