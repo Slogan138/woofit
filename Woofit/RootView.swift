@@ -5,6 +5,7 @@ import WoofitCore
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.watchSyncService) private var syncService
+    @Environment(\.liveActivity) private var liveActivity
     @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator = SessionCoordinator()
 
@@ -36,7 +37,10 @@ struct RootView: View {
             if let runner = coordinator.activeRunner, runner.id == payload?.sessionID {
                 runner.refreshFromRemoteChange()
                 // 상대가 끝냈으면 이쪽 화면도 닫는다. 요약은 끝낸 기기가 보여준다.
-                if runner.session.state != .inProgress { coordinator.endSession() }
+                if runner.session.state != .inProgress {
+                    if let liveActivity { Task { await liveActivity.end() } }
+                    coordinator.endSession()
+                }
             }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -54,6 +58,7 @@ struct RootView: View {
     private func endSession() {
         // 끝난 세션의 최종 상태를 보내야 워치가 계속 진행 중으로 보여주지 않는다(F-8).
         coordinator.push(coordinator.activeRunner?.session, to: syncService)
+        if let liveActivity { Task { await liveActivity.end() } }
         coordinator.endSession()
         try? syncService?.pushRoutines(in: modelContext)
     }

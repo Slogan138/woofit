@@ -11,6 +11,7 @@ struct SessionRunnerView: View {
     let onEnd: () -> Void
 
     @Environment(\.watchSyncService) private var syncService
+    @Environment(\.liveActivity) private var liveActivity
 
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
@@ -26,6 +27,12 @@ struct SessionRunnerView: View {
 
     private var nudgeThresholds: NudgeThresholds {
         NudgeThresholds(askMinutes: askMinutes, offerEndMinutes: offerEndMinutes)
+    }
+
+    private func refreshLiveActivity() {
+        guard let liveActivity else { return }
+        let session = runner.session
+        Task { await liveActivity.refresh(for: session) }
     }
 
     /// 안내 판정의 기준 시각.
@@ -109,7 +116,11 @@ struct SessionRunnerView: View {
         // `updateApplicationContext` 는 최신 것만 도착하면 되는 채널이라 매 세트가 부담이 아니다.
         .onChange(of: runner.session.recordedSetCount) { _, _ in
             try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: runner.session))
+            refreshLiveActivity()
         }
+        // 휴식을 시작·종료하면 잠금화면의 시계도 따라가야 한다(F-16).
+        .onChange(of: runner.restingSet?.restStartedAt) { _, _ in refreshLiveActivity() }
+        .task { refreshLiveActivity() }
         .sensoryFeedback(trigger: runner.session.recordedSetCount) { old, new in
             guard new > old else { return nil }
             return runner.lastRecordedSet?.result == .failure ? .warning : .success
