@@ -12,11 +12,6 @@ import SwiftData
 /// 때문이다. 그래서 **지우지 않고 중단으로 돌린다** — 지우면 그날 기록이 통째로 사라진다.
 public enum SessionLifetime {
 
-    /// 마지막 기록 후 이만큼 지나면 아직 운동 중인지 묻는다.
-    public static let askAfter: TimeInterval = 20 * 60
-    /// 마지막 기록 후 이만큼 지나면 계속·중단 선택지를 준다.
-    public static let offerEndAfter: TimeInterval = 45 * 60
-
     /// 살아 있지 않은 진행 중 세션을 중단으로 정리한다. 정리한 것을 돌려준다.
     @discardableResult
     public static func expireStale(
@@ -62,10 +57,14 @@ public enum SessionLifetime {
     /// **경과 시간이 아니라 무기록 시간으로 판단한다.** 실측 평균 세션이 50분이라 경과
     /// 시간을 기준으로 삼으면 정상적으로 운동하는 중에 자주 걸리고, 그런 알림은 곧
     /// 무시하게 된다(D14).
-    public static func nudge(idleSince: Date, at date: Date = Date()) -> Nudge {
+    public static func nudge(
+        idleSince: Date,
+        at date: Date = Date(),
+        thresholds: NudgeThresholds = .default
+    ) -> Nudge {
         let idle = date.timeIntervalSince(idleSince)
-        if idle >= offerEndAfter { return .offeringEnd }
-        if idle >= askAfter { return .asking }
+        if let offerEnd = thresholds.offerEndAfter, idle >= offerEnd { return .offeringEnd }
+        if let ask = thresholds.askAfter, idle >= ask { return .asking }
         return .none
     }
 
@@ -74,8 +73,11 @@ public enum SessionLifetime {
     ///
     /// 첫 항목이 `idleSince` 자신인 것은 `TimelineView(.explicit:)` 때문이다. 앞으로의
     /// 시각만 주면 첫 항목 전에는 보여줄 기준 시각이 없다.
-    public static func nudgeDates(idleSince: Date) -> [Date] {
-        [idleSince, idleSince.addingTimeInterval(askAfter), idleSince.addingTimeInterval(offerEndAfter)]
+    public static func nudgeDates(idleSince: Date, thresholds: NudgeThresholds = .default) -> [Date] {
+        [idleSince]
+            + [thresholds.askAfter, thresholds.offerEndAfter]
+                .compactMap { $0 }
+                .map(idleSince.addingTimeInterval)
     }
 
     // MARK: - 내부

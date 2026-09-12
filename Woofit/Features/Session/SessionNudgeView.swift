@@ -7,12 +7,13 @@ import WoofitCore
 /// 따로 둔다 — 공유 추상화를 만들 만큼 복잡하지 않다(휴식 표시와 같은 판단).
 struct SessionNudgeView: View {
     let idleSince: Date
+    let thresholds: NudgeThresholds
     let onKeepGoing: () -> Void
     let onEnd: () -> Void
 
     var body: some View {
-        TimelineView(.explicit(SessionLifetime.nudgeDates(idleSince: idleSince))) { context in
-            let nudge = SessionLifetime.nudge(idleSince: idleSince, at: context.date)
+        TimelineView(.explicit(SessionLifetime.nudgeDates(idleSince: idleSince, thresholds: thresholds))) { context in
+            let nudge = SessionLifetime.nudge(idleSince: idleSince, at: context.date, thresholds: thresholds)
             content(for: nudge)
                 .sensoryFeedback(.warning, trigger: nudge) { _, new in new != .none }
         }
@@ -59,8 +60,8 @@ struct SessionNudgeView: View {
 
 #Preview {
     VStack(spacing: 12) {
-        SessionNudgeView(idleSince: Date().addingTimeInterval(-25 * 60), onKeepGoing: {}, onEnd: {})
-        SessionNudgeView(idleSince: Date().addingTimeInterval(-50 * 60), onKeepGoing: {}, onEnd: {})
+        SessionNudgeView(idleSince: Date().addingTimeInterval(-25 * 60), thresholds: .default, onKeepGoing: {}, onEnd: {})
+        SessionNudgeView(idleSince: Date().addingTimeInterval(-50 * 60), thresholds: .default, onKeepGoing: {}, onEnd: {})
     }
     .padding()
 }
