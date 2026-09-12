@@ -10,6 +10,9 @@ struct WoofitWatchApp: App {
     private let syncService: WatchSyncService
     private let workoutSessionController: WorkoutSessionController
 
+    /// 폰이 워치 앱을 띄우는 경로를 받는다(F-17). 어댑터가 없으면 `handle(_:)` 이 불리지 않는다.
+    @WKApplicationDelegateAdaptor private var launchDelegate: WatchWorkoutLaunchDelegate
+
     /// 앱이 앞으로 나올 때마다 이미 도착해 있는 컨텍스트를 읽는다. 백그라운드에 있는
     /// 동안 온 것은 delegate 로 오지 않는다(F-8).
     @Environment(\.scenePhase) private var scenePhase
