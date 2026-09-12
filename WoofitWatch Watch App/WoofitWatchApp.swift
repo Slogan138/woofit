@@ -8,7 +8,6 @@ struct WoofitWatchApp: App {
     /// 워치는 폰의 캐시가 아니라 독립 저장소를 갖는다(PRD §8).
     private let container: ModelContainer
     private let syncService: WatchSyncService
-    private let workoutSessionController: WorkoutSessionController
 
     /// 폰이 워치 앱을 띄우는 경로를 받는다(F-17). 어댑터가 없으면 `handle(_:)` 이 불리지 않는다.
     @WKApplicationDelegateAdaptor private var launchDelegate: WatchWorkoutLaunchDelegate
@@ -26,7 +25,6 @@ struct WoofitWatchApp: App {
         }
         syncService = WatchSyncService(container: container)
         syncService.activate()
-        workoutSessionController = WorkoutSessionController(healthSession: HealthKitWorkoutSession())
     }
 
     var body: some Scene {
@@ -35,7 +33,8 @@ struct WoofitWatchApp: App {
         }
         .modelContainer(container)
         .environment(\.watchSyncService, syncService)
-        .environment(\.workoutSessionController, workoutSessionController)
+        // 폰이 띄웠을 때도 같은 컨트롤러가 쓰여야 운동 세션이 하나로 유지된다(F-17).
+        .environment(\.workoutSessionController, launchDelegate.workoutSessionController)
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             syncService.consumeReceivedContext()

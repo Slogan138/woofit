@@ -23,14 +23,20 @@
 `sendInProgressSession` 을 **먼저** 부르고 띄운다. 워치 앱이 뜨자마자 읽을 컨텍스트가
 있어야 곧바로 그 세션을 연다(F-8). 반대로 하면 빈 목록을 잠깐 보여주게 된다.
 
-### 델리게이트는 운동 세션을 만들지 않는다
+### 델리게이트가 운동 세션을 시작한다
 
-`handle(_ workoutConfiguration:)` 에서 `HKWorkoutSession` 을 직접 만들 수도 있지만
-그러지 않는다. 운동 세션의 수명은 `WorkoutSessionController` 한 곳이 쥐고 있고(계획 17),
-여기서 또 만들면 **두 개가 된다.** 앱이 앞으로 나오면 `WatchRootView` 가 세션을
-이어받으면서 운동 세션까지 시작한다(계획 21) — 이미 있는 경로다.
+처음에는 로그만 남기게 두었다. 운동 세션의 수명은 `WorkoutSessionController` 한 곳이
+쥐어야 하고(계획 17), 앱이 앞으로 나오면 `WatchRootView` 가 이어받으면서 시작하니
+중복이라고 봤다.
 
-그래서 델리게이트가 하는 일은 로그를 남기는 것뿐이다. **앱이 뜨는 것 자체가 목적**이었다.
+**실기기에서 틀린 것으로 드러났다.** 폰 로그에는 `워치 앱을 띄웠다` 가 찍히는데 워치
+화면은 뜨지 않았다. 애플이 이 메서드를 부르는 이유가 "여기서 운동 세션을 시작하라"이고,
+시작하지 않으면 watchOS 가 앱을 앞에 유지할 이유가 없다.
+
+그렇다고 `HKWorkoutSession` 을 델리게이트가 직접 만들지는 않는다. **컨트롤러를 델리게이트가
+소유하고** 앱이 그것을 환경으로 내려보낸다 — 시스템 진입점이 시스템 자원을 갖는 모양이고,
+`start()` 가 이미 중복 호출에 안전해서(`isActive` + `inFlightStart`) 이어받기 경로와
+겹쳐도 세션은 하나다.
 
 ### 폰의 HealthKit 권한은 통로다
 
@@ -42,7 +48,7 @@
 | 파일 | 내용 |
 | --- | --- |
 | `WoofitCore/Health/WatchAppLauncher.swift` | `startWatchApp` 호출. `#if os(iOS)` |
-| `WoofitWatch Watch App/Health/WatchWorkoutLaunchDelegate.swift` | 띄워진 것을 받는다 |
+| `WoofitWatch Watch App/Health/WatchWorkoutLaunchDelegate.swift` | 띄워진 것을 받아 운동 세션을 시작한다 |
 | `WoofitWatch Watch App/WoofitWatchApp.swift` | `@WKApplicationDelegateAdaptor` |
 | `Woofit/Features/Session/SessionCoordinator.swift` | 시작할 때 띄운다 |
 | `Woofit/Woofit.entitlements` | 폰 HealthKit 권한 |
@@ -73,3 +79,17 @@
 정상 상황이므로 조용히 넘긴다 — 그때는 워치를 손으로 열면 된다.
 
 **무료 계정에서도 된다.** 워치 앱이 이미 같은 권한으로 동작하고 있다(D5).
+
+---
+
+## 후속 · 띄우긴 하는데 화면이 안 뜬다 (fix/watch-launch-workout)
+
+폰 로그에 `워치 앱을 띄웠다` 가 찍혔으므로 `startWatchApp` 자체는 성공했다. 권한도
+문제가 없었다. **그런데 워치 화면이 앞으로 나오지 않았다.**
+
+원인은 위에 적은 설계 판단이었다 — `handle(_:)` 에서 운동 세션을 시작하지 않으면
+watchOS 가 앱을 앞에 유지하지 않는다. 컨트롤러 소유를 델리게이트로 옮겨 고쳤다.
+
+**남는 위험** — 폰이 띄웠는데 세션 데이터가 끝내 도착하지 않으면, 운동 세션만 열린 채
+남는다. 이어받기는 보통 몇 초 안에 끝나고, 세션이 열리면 완료·중단이 운동 세션도
+함께 끝낸다(계획 17). 실사용에서 유령 운동이 실제로 보이면 시간 제한을 건다.
