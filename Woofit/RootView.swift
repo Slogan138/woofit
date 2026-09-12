@@ -29,6 +29,7 @@ struct RootView: View {
             coordinator.watchAppLauncher = watchAppLauncher
             coordinator.restoreIfNeeded(in: modelContext)
             try? syncService?.pushRoutines(in: modelContext)
+            reconcileLiveActivity()
         }
         // 워치에서 시작한 세션이 도착하면 그 자리에서 연다(F-8). 앱이 이미 떠 있으면
         // scenePhase 가 바뀌지 않아 이 값의 변화로만 알 수 있다.
@@ -48,12 +49,24 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             coordinator.restoreIfNeeded(in: modelContext)
+            reconcileLiveActivity()
         }
         .fullScreenCover(item: $coordinator.activeRunner) { runner in
             NavigationStack {
                 SessionRunnerView(runner: runner, onEnd: endSession)
             }
         }
+    }
+
+    /// 잠금화면을 저장소와 맞춘다(F-16).
+    ///
+    /// **못 받은 종료를 여기서 정리한다.** 워치에서 중단했는데 폰이 그때 깨어나지 못하면
+    /// (강제 종료 상태 등) 카드가 그대로 남는다. 앱이 앞으로 나올 때 한 번 맞춰주면
+    /// 살아 있는 세션이 없을 때 카드도 함께 사라진다 — 계획 21 의 "그물"과 같은 장치다.
+    private func reconcileLiveActivity() {
+        guard let liveActivity else { return }
+        let session = try? SessionRestore.fetchInProgress(in: modelContext)
+        Task { await liveActivity.refresh(for: session) }
     }
 
     /// 세션이 끝나면 직전 기록이 바뀌므로, 루틴을 다시 내려보내 워치에도 반영한다(F-9).

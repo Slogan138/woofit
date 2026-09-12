@@ -16,6 +16,10 @@ import os
 public final class LiveActivityController: Sendable {
     private nonisolated static let logger = Logger(subsystem: "io.jwp.woofit", category: "LiveActivity")
 
+    /// 갱신이 이만큼 끊기면 시스템이 카드를 오래된 것으로 표시한다. 세션 하나가 평균
+    /// 50분이라(D14) 그보다 넉넉히 잡는다.
+    private static let staleAfter: TimeInterval = 2 * 60 * 60
+
     public init() {}
 
     /// 세션 현황을 잠금화면에 반영한다. **보여줄 것이 없으면 끝낸다** —
@@ -34,7 +38,12 @@ public final class LiveActivityController: Sendable {
     public func apply(_ snapshot: SessionLiveSnapshot, sessionID: UUID) async {
         // 사용자가 설정에서 꺼둔 경우. 기능이 없는 것처럼 조용히 넘어간다(F-14 권한과 같은 방식).
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let content = ActivityContent(state: snapshot, staleDate: nil)
+        // **끝내지 못한 카드가 최신인 척하지 않게 한다.** 상대 기기에서 중단했는데 폰이
+        // 깨어나지 못하면 카드가 남는데, 그때 시스템이 흐리게 표시해 오래된 값임을 알린다.
+        let content = ActivityContent(
+            state: snapshot,
+            staleDate: Date().addingTimeInterval(Self.staleAfter)
+        )
 
         if let running = Activity<SessionActivityAttributes>.activities
             .first(where: { $0.attributes.sessionID == sessionID }) {
@@ -58,7 +67,10 @@ public final class LiveActivityController: Sendable {
     /// 즉시 사라지게 한다. 기본 정책은 잠금화면에 한동안 남겨두는 것인데, 운동이 끝난
     /// 뒤에도 남아 있으면 "아직 진행 중"으로 읽힌다 — 이 앱이 그동안 겪은 문제의 모양이다(D14).
     public func end() async {
-        for activity in Activity<SessionActivityAttributes>.activities {
+        let running = Activity<SessionActivityAttributes>.activities
+        guard !running.isEmpty else { return }
+        Self.logger.info("Live Activity \(running.count, privacy: .public)개를 끝낸다")
+        for activity in running {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
     }
