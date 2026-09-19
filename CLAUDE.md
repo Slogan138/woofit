@@ -116,6 +116,10 @@ xcodebuild build -project Woofit.xcodeproj -scheme Woofit \
 프로젝트는 buildable folder 를 쓴다. 소스를 추가·삭제·이동해도 `project.pbxproj` 가
 바뀌지 않으므로 파일 목록을 손으로 관리하지 않는다.
 
+**스킴은 공유 스킴으로 커밋한다**(`xcshareddata/xcschemes/`). 위 명령이 `-scheme Woofit`
+에 의존하는데, 커밋하지 않으면 새로 클론했을 때 Xcode 가 자동 생성한 스킴이 쓰이고
+테스트 타겟 포함 여부나 빌드 구성이 달라질 수 있다. 개인 상태(`xcuserdata/`)는 제외한다.
+
 ---
 
 ## 핵심 설계 규칙
