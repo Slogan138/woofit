@@ -67,6 +67,7 @@ struct WatchRootView: View {
             // 앱이 꺼져 있는 동안 폰에서 시작한 세션은 활성화 시점에 저장소로 들어온다.
             syncService?.consumeReceivedContext()
             coordinator.restoreIfNeeded(in: modelContext, workoutSessionController: workoutSessionController)
+            requestRoutinesIfEmpty()
         }
         // 앱이 이미 떠 있는데 세션이 도착하는 경우는 이 값의 변화로만 알 수 있다.
         .onChange(of: syncService?.latestInProgressSession) { _, payload in
@@ -80,7 +81,20 @@ struct WatchRootView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             coordinator.restoreIfNeeded(in: modelContext, workoutSessionController: workoutSessionController)
+            requestRoutinesIfEmpty()
         }
+    }
+}
+
+private extension WatchRootView {
+
+    /// 루틴이 하나도 없으면 폰에 다시 보내달라고 한다(F-8).
+    ///
+    /// **앱을 재설치하면 저장소가 비는데**, 그때 폰이 보내는 루틴 컨텍스트는 직전과
+    /// 내용이 같아 전달되지 않는다. 받기만 기다리면 루틴 없음이 계속 유지된다.
+    func requestRoutinesIfEmpty() {
+        guard routines.isEmpty else { return }
+        try? syncService?.requestRoutines()
     }
 }
 
