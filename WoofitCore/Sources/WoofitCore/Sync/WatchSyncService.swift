@@ -18,6 +18,10 @@ public final class WatchSyncService: NSObject {
     private nonisolated static let routinesKey = "routines"
     private nonisolated static let inProgressSessionKey = "inProgressSession"
     private nonisolated static let thresholdsKey = "nudgeThresholds"
+    /// 보낼 때마다 달라지는 값. `updateContext` 참고.
+    private nonisolated static let sentAtKey = "sentAt"
+    /// 워치 → 폰. "루틴이 하나도 없다, 다시 보내달라"(F-8).
+    private nonisolated static let routineRequestKey = "routineRequest"
     private nonisolated static let setResultKey = "setResult"
     private nonisolated static let sessionSnapshotKey = "sessionSnapshot"
     private nonisolated static let logger = Logger(subsystem: "io.jwp.woofit", category: "WatchSync")
@@ -104,10 +108,23 @@ public final class WatchSyncService: NSObject {
     public func sendRoutines(_ payloads: [RoutinePayload]) throws {
         try track {
             latestRoutines = payloads
-            var context = session.applicationContext
-            context[Self.routinesKey] = try JSONEncoder().encode(payloads)
-            try session.updateApplicationContext(context)
+            try updateContext { $0[Self.routinesKey] = try JSONEncoder().encode(payloads) }
         }
+    }
+
+    /// 컨텍스트를 고쳐 보내는 유일한 통로.
+    ///
+    /// **내용이 이전과 같으면 상대 기기에 전달되지 않는다.** 그래서 매번 달라지는 값을
+    /// 하나 심는다 — 워치 앱을 재설치하면 저장소가 비는데, 그때 폰이 보내는 루틴 payload 는
+    /// 직전과 똑같아서 전달되지 않고 **루틴 없음이 계속 유지됐다.**
+    ///
+    /// 이 값은 별도 키라 루틴·세션 payload 자체는 그대로다. 받는 쪽은 payload 가 같으면
+    /// 병합을 건너뛰므로(아래 `handleApplicationContext`) 헛일도 하지 않는다.
+    private func updateContext(_ mutate: (inout [String: Any]) throws -> Void) throws {
+        var context = session.applicationContext
+        try mutate(&context)
+        context[Self.sentAtKey] = Date().timeIntervalSince1970
+        try session.updateApplicationContext(context)
     }
 
     /// 로컬 저장소의 루틴 전체와 직전 기록을 모아 payload 를 만들고 그대로 내려보낸다.
@@ -126,9 +143,7 @@ public final class WatchSyncService: NSObject {
     /// 워치는 이 경로로만 값을 받는다 — 받지 못하면 기본값(20·45분)을 쓴다.
     public func sendNudgeThresholds(_ thresholds: NudgeThresholds) throws {
         try track {
-            var context = session.applicationContext
-            context[Self.thresholdsKey] = try JSONEncoder().encode(thresholds)
-            try session.updateApplicationContext(context)
+            try updateContext { $0[Self.thresholdsKey] = try JSONEncoder().encode(thresholds) }
         }
     }
 
@@ -137,13 +152,13 @@ public final class WatchSyncService: NSObject {
     /// `nil` 이면 이어받을 세션이 없다는 뜻이다(세션을 지웠을 때).
     public func sendInProgressSession(_ payload: SessionSnapshotPayload?) throws {
         try track {
-            var context = session.applicationContext
-            if let payload {
-                context[Self.inProgressSessionKey] = try JSONEncoder().encode(payload)
-            } else {
-                context.removeValue(forKey: Self.inProgressSessionKey)
+            try updateContext { context in
+                if let payload {
+                    context[Self.inProgressSessionKey] = try JSONEncoder().encode(payload)
+                } else {
+                    context.removeValue(forKey: Self.inProgressSessionKey)
+                }
             }
-            try session.updateApplicationContext(context)
         }
     }
 
@@ -155,6 +170,17 @@ public final class WatchSyncService: NSObject {
         try track {
             let data = try JSONEncoder().encode(payload)
             session.transferUserInfo([Self.setResultKey: data])
+        }
+    }
+
+    /// 루틴이 하나도 없을 때 폰에 다시 보내달라고 알린다(F-8).
+    ///
+    /// **`transferUserInfo` 를 쓰는 이유** — 이 요청은 폰 앱이 꺼져 있어도 도착해야 한다.
+    /// 큐잉 전달이라 폰을 백그라운드에서 깨운다. 앱이 켜지길 기다리면 헬스장에서
+    /// 루틴 없는 화면을 보고 있어야 한다.
+    public func requestRoutines() throws {
+        try track {
+            session.transferUserInfo([Self.routineRequestKey: true])
         }
     }
 
@@ -182,7 +208,14 @@ public final class WatchSyncService: NSObject {
 
     // MARK: - 수신 처리
 
-    private func handleUserInfo(setResultData: Data?, snapshotData: Data?) {
+    private func handleUserInfo(setResultData: Data?, snapshotData: Data?, wantsRoutines: Bool = false) {
+        #if os(iOS)
+        // 워치가 루틴을 잃었다(재설치 등). 지금 바로 다시 내려보낸다.
+        if wantsRoutines {
+            Self.logger.info("워치가 루틴을 요청했다")
+            try? pushRoutines(in: container.mainContext)
+        }
+        #endif
         // **화면과 같은 컨텍스트에 반영한다.** 별도 컨텍스트에 저장하면 열려 있는
         // 세션 화면이 이미 들고 있는 객체가 즉시 갱신되지 않아, 상대가 기록한 세트가
         // 화면에 안 나타난다(F-8). 이 타입은 `@MainActor` 라 `mainContext` 를 써도 안전하다.
@@ -329,8 +362,13 @@ extension WatchSyncService: WCSessionDelegate {
     public nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         let setResultData = userInfo[Self.setResultKey] as? Data
         let snapshotData = userInfo[Self.sessionSnapshotKey] as? Data
+        let wantsRoutines = userInfo[Self.routineRequestKey] as? Bool ?? false
         Task { @MainActor in
-            self.handleUserInfo(setResultData: setResultData, snapshotData: snapshotData)
+            self.handleUserInfo(
+                setResultData: setResultData,
+                snapshotData: snapshotData,
+                wantsRoutines: wantsRoutines
+            )
         }
     }
 
