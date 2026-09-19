@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// W3 · 워치 세트 실행. 화면이 작으므로 현재 세트 하나만 크게 보여주고

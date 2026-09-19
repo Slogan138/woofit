@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// P7 · 설정. 지금은 최소 상태다 — F-13 이 진입점을 필요로 해서 신설했다.

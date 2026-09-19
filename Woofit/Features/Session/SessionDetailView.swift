@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// F-6 작업 단위 8 · 지난 세션 상세(P6). 목록은 훑어보는 곳이고 마크다운 복사는 여기서 한다.

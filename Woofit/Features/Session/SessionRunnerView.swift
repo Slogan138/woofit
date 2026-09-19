@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// P4 · 세션 실행. 현재 세트를 카드로 띄우고 성공·실패 버튼을 화면 하단에 고정한다(F-3).

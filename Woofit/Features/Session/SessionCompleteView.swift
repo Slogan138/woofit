@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// F-4 세션 완료 화면(P5). 마지막 종목까지 끝나면 전환 화면 대신 자동으로 뜬다.
