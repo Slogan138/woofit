@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// F-4 전환 화면. 한 종목의 모든 세트가 처리되면 자동으로 뜬다.

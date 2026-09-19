@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// P2 · 루틴 상세. 전 종목·전 세트를 보여준다(F-2).

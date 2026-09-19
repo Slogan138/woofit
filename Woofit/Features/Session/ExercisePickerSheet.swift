@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import WoofitCore
 
 /// F-4 종목 이동 시트. 기구가 사용 중일 때 순서를 무시하고 아직 안 끝난
