@@ -27,13 +27,13 @@ public final class LiveActivityController: SessionPresence, Sendable {
     ///
     /// `WorkoutSession` 은 `Sendable` 이 아니므로 이 메서드에서 값으로 바꿔 넘긴다.
     @MainActor
-    public func sessionDidChange(to session: WorkoutSession?) async {
-        await refresh(for: session)
+    public func sessionDidChange(to session: WorkoutSession?, focusedSet: SessionSet?) async {
+        await refresh(for: session, focusedSet: focusedSet)
     }
 
     @MainActor
-    public func refresh(for session: WorkoutSession?) async {
-        guard let session, let snapshot = SessionLiveSnapshot.make(for: session) else {
+    public func refresh(for session: WorkoutSession?, focusedSet: SessionSet? = nil) async {
+        guard let session, let snapshot = SessionLiveSnapshot.make(for: session, focusedSet: focusedSet) else {
             await end()
             return
         }

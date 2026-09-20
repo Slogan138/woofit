@@ -51,8 +51,14 @@ public extension SessionLiveSnapshot {
 
     /// 진행 중인 세션의 현재 모습. 기록할 세트가 남아 있지 않으면 `nil` —
     /// **보여줄 것이 없다는 뜻이고, 그때 Live Activity 는 끝나야 한다.**
-    static func make(for session: WorkoutSession) -> SessionLiveSnapshot? {
-        guard session.state == .inProgress, let set = session.nextPendingSet else { return nil }
+    ///
+    /// `focusedSet` 은 화면이 지금 보여주고 있는 세트다. 순서를 건너뛰어 다른 종목으로
+    /// 이동하면(F-4) `nextPendingSet` 과 갈라지므로, **화면이 아는 값이 있으면 그것을
+    /// 우선한다** — 그러지 않으면 화면은 펙덱인데 잠금화면은 벤치프레스를 보여준다.
+    /// 화면이 없을 때(동기화 수신 경로)는 `nextPendingSet` 이 유일한 근거다.
+    static func make(for session: WorkoutSession, focusedSet: SessionSet? = nil) -> SessionLiveSnapshot? {
+        let focused = focusedSet.flatMap { $0.result == .pending ? $0 : nil }
+        guard session.state == .inProgress, let set = focused ?? session.nextPendingSet else { return nil }
         let sets = set.exercise?.sortedSets ?? []
         return SessionLiveSnapshot(
             routineName: session.routineName,

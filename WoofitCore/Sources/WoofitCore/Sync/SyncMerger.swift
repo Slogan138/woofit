@@ -127,6 +127,9 @@ public enum SyncMerger {
         set.actualWeight = payload.actualWeight
         set.actualReps = payload.actualReps
         set.restSeconds = payload.restSeconds
+        // 진행 중인 휴식도 따라간다. 상대가 쉬기 시작한 것을 모르면 잠금화면 시계가
+        // 뜨지 않고, 멈춘 것을 모르면 영영 돌아간다(F-16).
+        set.restStartedAt = payload.restStartedAt
         set.recordedAt = newRecordedAt
     }
 

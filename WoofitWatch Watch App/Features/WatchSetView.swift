@@ -96,6 +96,11 @@ struct WatchSetView: View {
             // 진행 상태 전체도 함께 갱신한다(F-8).
             try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: runner.session))
         }
+        // 휴식은 세트 기록과 달리 `lastRecordedSet` 을 바꾸지 않아 위 경로에 걸리지 않는다.
+        // 보내지 않으면 폰은 "쉬는 중"을 영영 모르고 잠금화면 시계가 뜨지 않는다(F-16).
+        .onChange(of: runner.restingSet?.restStartedAt) { _, _ in
+            try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: runner.session))
+        }
         // 마지막 세트를 기록하면 SessionRunner 가 세션을 자동으로 완료 처리한다(F-4).
         .onChange(of: runner.phase) { _, phase in
             guard case .finished = phase else { return }

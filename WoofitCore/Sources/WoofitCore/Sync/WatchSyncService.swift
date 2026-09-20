@@ -93,7 +93,7 @@ public final class WatchSyncService: NSObject {
             session = nil
         }
         for presence in presences {
-            Task { await presence.sessionDidChange(to: session) }
+            Task { await presence.sessionDidChange(to: session, focusedSet: nil) }
         }
     }
 
