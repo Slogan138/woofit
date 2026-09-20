@@ -156,10 +156,16 @@ PRD §7 에서 온 것들. 어기면 조용히 데이터가 망가지므로 먼�
 **기능은 브랜치, 버그 수정은 워크트리에서 한다.** `main` 에 직접 커밋하지 않는다.
 
 - 기능 — 작업 폴더에서 `feature/<계획번호>-<슬러그>` 브랜치를 판다. 예: `feature/f02-routine-browsing`
-- 버그 — `git worktree add ../woofit-fix-<슬러그> -b fix/<슬러그> main` 으로 별도 디렉터리에서 고친다
+- 버그 — `git worktree add .claude/worktrees/<슬러그> -b fix/<슬러그> main` 으로 별도 디렉터리에서 고친다
 
 검증 중 발견한 버그를 진행 중인 기능 작업과 섞지 않기 위함이다. 워크트리를 쓰면
 양쪽을 동시에 열어둘 수 있고 빌드 캐시도 분리된다.
+
+**워크트리는 `.claude/worktrees/` 아래 둔다.** 저장소 밖(`../woofit-fix-*`)에 흩어지면
+상위 폴더가 지저분해지고 어떤 저장소의 것인지도 드러나지 않는다. 이 경로는
+`.gitignore` 로 제외돼 있어 주 작업 폴더의 `git status` 를 더럽히지 않고,
+Xcode 의 buildable folder(`Woofit/`, `WoofitWatch Watch App/`, `WoofitWidget/`) 바깥이라
+빌드에 섞이지도 않는다.
 
 **워크트리는 자기 `fix/` 브랜치에서 벗어나지 않는다. 머지는 주 작업 폴더에서 한다.**
 워크트리 안에서 `main` 을 체크아웃하면 주 폴더가 `main` 으로 옮기지 못하고(같은 브랜치를
@@ -170,7 +176,7 @@ PRD §7 에서 온 것들. 어기면 조용히 데이터가 망가지므로 먼�
 git status --short                # 비어 있어야 한다. 아니면 커밋하거나 git stash -u
 git checkout main
 git merge --no-ff fix/<슬러그>
-git worktree remove ../woofit-fix-<슬러그>
+git worktree remove .claude/worktrees/<슬러그>
 git branch -d fix/<슬러그>        # main 을 체크아웃한 상태여야 정확히 판정된다
 git checkout <원래 브랜치>
 ```
