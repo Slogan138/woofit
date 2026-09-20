@@ -118,6 +118,10 @@ public struct SetResultPayload: Codable, Hashable, Sendable {
     public var actualWeight: Double?
     public var actualReps: Int?
     public var restSeconds: Double?
+    /// **지금 재고 있는 휴식.** 이것이 없으면 상대 기기는 "쉬는 중"을 알 수 없어
+    /// 잠금화면 휴식 시계가 뜨지 않는다(F-16). `restSeconds` 는 이미 끝난 휴식이라
+    /// 진행 중 상태를 대신하지 못한다.
+    public var restStartedAt: Date?
     /// 병합 우선순위 기준(PRD §8). 나중 값이 이긴다. 아직 수행하지 않은 세트는 `nil` —
     /// 이 값이 없는 payload 는 기존 기록을 절대 덮어쓰지 않는다(`SyncMerger.apply`).
     public var recordedAt: Date?
@@ -139,6 +143,7 @@ public struct SetResultPayload: Codable, Hashable, Sendable {
         actualWeight: Double?,
         actualReps: Int?,
         restSeconds: Double?,
+        restStartedAt: Date? = nil,
         recordedAt: Date?
     ) {
         self.sessionID = sessionID
@@ -157,6 +162,7 @@ public struct SetResultPayload: Codable, Hashable, Sendable {
         self.actualWeight = actualWeight
         self.actualReps = actualReps
         self.restSeconds = restSeconds
+        self.restStartedAt = restStartedAt
         self.recordedAt = recordedAt
     }
 }
@@ -191,6 +197,7 @@ public extension SetResultPayload {
             actualWeight: set.actualWeight,
             actualReps: set.actualReps,
             restSeconds: set.restSeconds,
+            restStartedAt: set.restStartedAt,
             recordedAt: set.recordedAt
         )
     }

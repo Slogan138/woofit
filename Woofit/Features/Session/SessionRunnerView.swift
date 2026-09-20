@@ -34,8 +34,9 @@ struct SessionRunnerView: View {
     /// 잠금화면과 알림을 지금 세션에 맞춘다(F-16, F-18).
     private func refreshPresence() {
         let session = runner.session
+        let focused = runner.focusedSet
         for presence in [liveActivity as (any SessionPresence)?, sessionNotifications].compactMap(\.self) {
-            Task { await presence.sessionDidChange(to: session) }
+            Task { await presence.sessionDidChange(to: session, focusedSet: focused) }
         }
     }
 
@@ -123,7 +124,15 @@ struct SessionRunnerView: View {
             refreshPresence()
         }
         // 휴식을 시작·종료하면 잠금화면의 시계도 따라가야 한다(F-16).
-        .onChange(of: runner.restingSet?.restStartedAt) { _, _ in refreshPresence() }
+        // 워치도 알아야 하므로 진행 상태를 함께 보낸다 — 휴식은 세트 기록과 달리
+        // `recordedSetCount` 를 바꾸지 않아 위 경로에 걸리지 않는다(F-8).
+        .onChange(of: runner.restingSet?.restStartedAt) { _, _ in
+            try? syncService?.sendInProgressSession(SessionSnapshotPayload.make(for: runner.session))
+            refreshPresence()
+        }
+        // 순서를 건너뛰어 다른 종목으로 이동하면 기록도 휴식도 바뀌지 않는다.
+        // 이 트리거가 없으면 잠금화면이 이전 종목에 머문다(F-4, F-16).
+        .onChange(of: runner.focusedSet?.id) { _, _ in refreshPresence() }
         .task { refreshPresence() }
         .sensoryFeedback(trigger: runner.session.recordedSetCount) { old, new in
             guard new > old else { return nil }

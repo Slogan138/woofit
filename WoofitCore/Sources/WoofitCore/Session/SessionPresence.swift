@@ -12,5 +12,8 @@ import Foundation
 @MainActor
 public protocol SessionPresence: AnyObject {
     /// `nil` 이면 살아 있는 세션이 없다는 뜻이다 — 표시를 **지운다**.
-    func sessionDidChange(to session: WorkoutSession?) async
+    ///
+    /// `focusedSet` 은 화면이 보여주는 세트다. 수신 경로처럼 화면을 모르는 자리에서는
+    /// `nil` 을 넘기고, 그때는 순서상 다음 세트가 쓰인다.
+    func sessionDidChange(to session: WorkoutSession?, focusedSet: SessionSet?) async
 }

@@ -403,3 +403,94 @@ func notificationPlanSkipsPastDates() throws {
 
     #expect(scheduled.map(\.nudge) == [.offeringEnd])
 }
+
+// MARK: - 잠금화면 현황이 세션을 따라가는가 (F-16)
+
+@MainActor
+@Test("현황은 화면이 보고 있는 세트를 가리킨다")
+func liveSnapshotFollowsFocusedSet() throws {
+    // 기구가 사용 중이라 다음 종목으로 건너뛰면(F-4) `nextPendingSet` 과 갈라진다.
+    // 화면은 펙덱인데 잠금화면이 벤치프레스를 보여주면 안 된다.
+    let container = try makeContainer()
+    let context = container.mainContext
+    let routine = Routine(name: "가슴", category: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 3, weight: 40, reps: 10)
+    routine.appendExercise(named: "펙덱").appendSets(count: 2, weight: 30, reps: 15)
+    let session = WorkoutSession.start(from: routine, at: noon)
+    context.insert(session)
+
+    let jumped = try #require(session.sortedExercises.last?.sortedSets.first)
+    let snapshot = try #require(SessionLiveSnapshot.make(for: session, focusedSet: jumped))
+
+    #expect(snapshot.exerciseName == "펙덱")
+    #expect(snapshot.setIndex == 1)
+    #expect(snapshot.setCount == 2)
+}
+
+@MainActor
+@Test("초점을 모르면 순서상 다음 세트를 쓴다")
+func liveSnapshotFallsBackToNextPending() throws {
+    // 동기화 수신 경로에는 화면이 없다. 그때도 현황은 그려져야 한다.
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    session.allSets[0].markSuccess(at: noon)
+
+    let snapshot = try #require(SessionLiveSnapshot.make(for: session))
+
+    #expect(snapshot.setIndex == 2)
+}
+
+@MainActor
+@Test("이미 기록한 세트에 초점이 남아 있으면 다음 세트로 넘어간다")
+func liveSnapshotIgnoresRecordedFocus() throws {
+    // 기록 직후 초점이 아직 옮겨가기 전일 수 있다. 끝난 세트를 "지금 할 세트"로
+    // 보여주면 안 된다.
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    let first = session.allSets[0]
+    first.markSuccess(at: noon)
+
+    let snapshot = try #require(SessionLiveSnapshot.make(for: session, focusedSet: first))
+
+    #expect(snapshot.setIndex == 2)
+}
+
+@MainActor
+@Test("재고 있는 휴식이 상대 기기로 전달된다")
+func restStartedAtSyncs() throws {
+    // 이것이 없으면 워치로 운동하는 내내 폰 잠금화면에 휴식 시계가 뜨지 않는다(F-16).
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    session.allSets[0].markSuccess(at: noon)
+    session.allSets[0].startRest(at: noon.addingTimeInterval(3))
+
+    let targetContainer = try makeContainer()
+    let target = targetContainer.mainContext
+    try SyncMerger.mergeInProgress(SessionSnapshotPayload.make(for: session), into: target)
+
+    let merged = try #require(try target.fetch(FetchDescriptor<WorkoutSession>()).first)
+    #expect(merged.restingSet?.restStartedAt == noon.addingTimeInterval(3))
+    #expect(SessionLiveSnapshot.make(for: merged)?.restStartedAt == noon.addingTimeInterval(3))
+}
+
+@MainActor
+@Test("상대가 휴식을 끝내면 그 사실도 전달된다")
+func restStopSyncs() throws {
+    // 멈춘 것을 모르면 잠금화면 시계가 영영 돌아간다.
+    let container = try makeContainer()
+    let session = session(named: "가슴", startedAt: noon, in: container.mainContext)
+    session.allSets[0].markSuccess(at: noon)
+    session.allSets[0].startRest(at: noon.addingTimeInterval(3))
+
+    let targetContainer = try makeContainer()
+    let target = targetContainer.mainContext
+    try SyncMerger.mergeInProgress(SessionSnapshotPayload.make(for: session), into: target)
+
+    session.allSets[0].stopRest(at: noon.addingTimeInterval(90))
+    try SyncMerger.mergeInProgress(SessionSnapshotPayload.make(for: session), into: target)
+
+    let merged = try #require(try target.fetch(FetchDescriptor<WorkoutSession>()).first)
+    #expect(merged.restingSet == nil)
+    #expect(merged.allSets[0].restSeconds == 87)
+}

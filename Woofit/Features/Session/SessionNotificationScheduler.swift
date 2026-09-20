@@ -48,7 +48,7 @@ final class SessionNotificationScheduler: NSObject, SessionPresence {
 
     // MARK: - SessionPresence
 
-    func sessionDidChange(to session: WorkoutSession?) async {
+    func sessionDidChange(to session: WorkoutSession?, focusedSet: SessionSet?) async {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: SessionNotificationPlan.allIdentifiers)
 

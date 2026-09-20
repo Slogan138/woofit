@@ -43,7 +43,7 @@ struct RootView: View {
                 // 상대가 끝냈으면 이쪽 화면도 닫는다. 요약은 끝낸 기기가 보여준다.
                 if runner.session.state != .inProgress {
                     if let liveActivity { Task { await liveActivity.end() } }
-                    if let sessionNotifications { Task { await sessionNotifications.sessionDidChange(to: nil) } }
+                    if let sessionNotifications { Task { await sessionNotifications.sessionDidChange(to: nil, focusedSet: nil) } }
                     coordinator.endSession()
                 }
             }
@@ -67,8 +67,9 @@ struct RootView: View {
     /// 살아 있는 세션이 없을 때 카드도 함께 사라진다 — 계획 21 의 "그물"과 같은 장치다.
     private func reconcilePresence() {
         let session = try? SessionRestore.fetchInProgress(in: modelContext)
+        let focused = coordinator.activeRunner.flatMap { $0.id == session?.id ? $0.focusedSet : nil }
         for presence in [liveActivity as (any SessionPresence)?, sessionNotifications].compactMap(\.self) {
-            Task { await presence.sessionDidChange(to: session) }
+            Task { await presence.sessionDidChange(to: session, focusedSet: focused) }
         }
     }
 
@@ -77,7 +78,7 @@ struct RootView: View {
         // 끝난 세션의 최종 상태를 보내야 워치가 계속 진행 중으로 보여주지 않는다(F-8).
         coordinator.push(coordinator.activeRunner?.session, to: syncService)
         if let liveActivity { Task { await liveActivity.end() } }
-        if let sessionNotifications { Task { await sessionNotifications.sessionDidChange(to: nil) } }
+        if let sessionNotifications { Task { await sessionNotifications.sessionDidChange(to: nil, focusedSet: nil) } }
         coordinator.endSession()
         try? syncService?.pushRoutines(in: modelContext)
     }
