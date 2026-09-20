@@ -94,7 +94,7 @@ private extension WatchRootView {
     /// 내용이 같아 전달되지 않는다. 받기만 기다리면 루틴 없음이 계속 유지된다.
     func requestRoutinesIfEmpty() {
         guard routines.isEmpty else { return }
-        try? syncService?.requestRoutines()
+        syncService?.requestRoutines()
     }
 }
 
