@@ -178,9 +178,11 @@ public final class WatchSyncService: NSObject {
     /// **`transferUserInfo` 를 쓰는 이유** — 이 요청은 폰 앱이 꺼져 있어도 도착해야 한다.
     /// 큐잉 전달이라 폰을 백그라운드에서 깨운다. 앱이 켜지길 기다리면 헬스장에서
     /// 루틴 없는 화면을 보고 있어야 한다.
-    public func requestRoutines() throws {
-        try track {
-            session.transferUserInfo([Self.routineRequestKey: true])
+    public func requestRoutines() {
+        track {
+            // 돌려받는 전송 객체는 취소용이다. 큐에 넣는 것이 목적이라 쓰지 않는다.
+            // 버리지 않으면 `track` 의 반환값이 되어 호출부에서 미사용 경고가 난다.
+            _ = session.transferUserInfo([Self.routineRequestKey: true])
         }
     }
 
