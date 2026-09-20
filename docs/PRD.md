@@ -1,7 +1,7 @@
 # Woofit — 제품 요구사항 정의서
 
 > **v1.3** · 2026-08-30
-> iOS 26 · watchOS 26 / SwiftUI + SwiftData / WatchConnectivity / 오프라인 전용 / 사용자 1인
+> iOS 27 · watchOS 27 / SwiftUI + SwiftData / WatchConnectivity / 오프라인 전용 / 사용자 1인
 
 미리 짜둔 근력 루틴을 헬스장에서 그대로 실행하고, 세트마다 성공·실패와 휴식 시간을 남긴 뒤,
 끝나면 마크다운 표로 뽑아 노트에 붙이는 개인용 도구.
@@ -783,7 +783,7 @@ WorkoutSession
 
 | 항목 | 요구 |
 | --- | --- |
-| 플랫폼 | iOS 26 · watchOS 26 이상. Xcode 26, Swift 6. |
+| 플랫폼 | iOS 27 · watchOS 27 이상. Xcode 27, Swift 6. 사용자의 두 기기가 27 이라 낮출 이유가 없고, 온디바이스·PCC 언어 모델이 27 부터다. |
 | 검증 기기 | iPhone · **Apple Watch Ultra 3(49mm)**. 사용자가 쓰는 기기만 검증한다. 라이트 모드는 확인하지 않는다(D15). |
 | 기술 스택 | SwiftUI, SwiftData, WatchConnectivity. 공용 로직은 로컬 Swift Package `WoofitCore`에 둔다. M3의 그래프는 Swift Charts. |
 | 네트워크 | 불필요. 서버도 계정도 없다. |

@@ -48,7 +48,7 @@ woofit/
 └── Woofit.xcodeproj
 ```
 
-프로젝트 파일은 Xcode 26의 **buildable folder**(동기화된 폴더)를 쓴다.
+프로젝트 파일은 Xcode 27의 **buildable folder**(동기화된 폴더)를 쓴다.
 `Woofit/` 과 `WoofitWatch Watch App/` 아래에 소스를 추가·삭제·이동해도
 `project.pbxproj` 가 바뀌지 않으므로 머지 충돌이 생기지 않는다.
 

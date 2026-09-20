@@ -1,6 +1,6 @@
 # Woofit 기술 명세
 
-> **2026-08-30** · iOS 26 · watchOS 26
+> **2026-08-30** · iOS 27 · watchOS 27
 > 제품 정의는 [PRD](PRD.md) 가 맡고, 이 문서는 그것을 **어떻게 지었는지**를 다룬다.
 
 근력 루틴을 미리 짜두고 헬스장에서 실행한 뒤 마크다운으로 뽑아 노트에 붙이는
@@ -337,8 +337,8 @@ payload 와 `ModelContext` 만 받으므로 **병합 규칙 전체가 시뮬레�
 | --- | --- |
 | Xcode | 26.6 |
 | Swift 언어 모드 | 6.0 |
-| 패키지 tools-version | 6.2 — `.v26` 플랫폼 지정에 필요 |
-| 배포 타겟 | iOS 26.0 · watchOS 26.0 |
+| 패키지 tools-version | 6.4 — `.v27` 플랫폼 지정에 필요 |
+| 배포 타겟 | iOS 27.0 · watchOS 27.0 |
 | 번들 식별자 | `io.jwp.woofit` · `io.jwp.woofit.watchkitapp` |
 
 ### buildable folder
