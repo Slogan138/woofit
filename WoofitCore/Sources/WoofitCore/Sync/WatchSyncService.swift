@@ -97,6 +97,16 @@ public final class WatchSyncService: NSObject {
         }
     }
 
+    /// 활성화 전에는 큐잉 전송을 부를 수 없다. **`WCSession` 이 Objective-C 예외를 던지고,
+    /// Swift 에서 잡을 수 없어 앱이 그대로 죽는다** — `track` 은 Swift 오류만 잡는다.
+    ///
+    /// `activate()` 가 비동기라 앱이 뜨자마자 부르는 경로(루틴 요청)는 실제로 이 창에 걸린다.
+    private var canTransfer: Bool { session.activationState == .activated }
+
+    /// 활성화 전에 들어온 루틴 요청. 활성화가 끝나면 보낸다 — 버리면 워치에 루틴이
+    /// 없는 채로 남고, 다음에 앱을 열 때까지 복구되지 않는다(F-8).
+    private var pendingRoutineRequest = false
+
     public func activate() {
         guard WCSession.isSupported() else { return }
         session.activate()
@@ -167,6 +177,7 @@ public final class WatchSyncService: NSObject {
     /// 세트 하나를 기록하자마자 큐에 넣는다. 기록 자체는 로컬에 이미 끝나 있으므로
     /// 이 호출이 세트 기록 흐름을 기다리게 만들지 않는다(F-3 100ms 수용 기준).
     public func sendSetResult(_ payload: SetResultPayload) throws {
+        guard canTransfer else { return }
         try track {
             let data = try JSONEncoder().encode(payload)
             session.transferUserInfo([Self.setResultKey: data])
@@ -179,6 +190,12 @@ public final class WatchSyncService: NSObject {
     /// 큐잉 전달이라 폰을 백그라운드에서 깨운다. 앱이 켜지길 기다리면 헬스장에서
     /// 루틴 없는 화면을 보고 있어야 한다.
     public func requestRoutines() {
+        guard canTransfer else {
+            // 앱이 뜨는 중이라 아직 활성화 전이다. 활성화가 끝나면 보낸다.
+            pendingRoutineRequest = true
+            Self.logger.notice("활성화 전이라 루틴 요청을 미룬다")
+            return
+        }
         track {
             // 돌려받는 전송 객체는 취소용이다. 큐에 넣는 것이 목적이라 쓰지 않는다.
             // 버리지 않으면 `track` 의 반환값이 되어 호출부에서 미사용 경고가 난다.
@@ -188,6 +205,7 @@ public final class WatchSyncService: NSObject {
 
     /// 세션 종료 스냅샷. 세트별 전송이 하나라도 새면 이것으로 복구된다.
     public func sendSessionSnapshot(_ payload: SessionSnapshotPayload) throws {
+        guard canTransfer else { return }
         try track {
             let data = try JSONEncoder().encode(payload)
             session.transferUserInfo([Self.sessionSnapshotKey: data])
@@ -253,6 +271,10 @@ public final class WatchSyncService: NSObject {
             return
         }
         Self.logger.info("WCSession 활성화 완료")
+        if pendingRoutineRequest {
+            pendingRoutineRequest = false
+            requestRoutines()
+        }
         // 앱이 꺼져 있는 동안 도착한 컨텍스트는 delegate 로 오지 않는다. 활성화 직후
         // 한 번 읽어줘야 한다 — 이것이 없어서 세션 이어받기가 실기기에서 동작하지
         // 않았다(F-8). 폰에서 세션을 시작할 때 워치 앱은 대개 꺼져 있다.
