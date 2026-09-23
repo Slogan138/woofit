@@ -12,6 +12,18 @@ public final class HealthKitWorkoutSession: WorkoutHealthSession {
     private nonisolated static let logger = Logger(subsystem: "io.jwp.woofit", category: "HealthKitWorkoutSession")
     private nonisolated static let workoutType = HKObjectType.workoutType()
 
+    /// 운동에 붙일 값들. **읽기 권한이 없으면 `HKLiveWorkoutDataSource` 가 아무것도
+    /// 모으지 못해 칼로리가 0 으로 남는다**(F-14 활동 링). 시스템이 기록한 샘플을
+    /// 읽어서 운동 객체에 합산하는 구조라, 쓰기 권한만으로는 부족하다.
+    ///
+    /// 심박수가 상세 화면에 보이는 것과는 별개다 — 그건 건강 앱이 같은 시간대 샘플을
+    /// 자체적으로 읽어 그리는 것이고, 칼로리는 운동에 붙은 합계값이다.
+    private nonisolated static let collectedTypes: Set<HKObjectType> = [
+        HKQuantityType(.activeEnergyBurned),
+        HKQuantityType(.basalEnergyBurned),
+        HKQuantityType(.heartRate),
+    ]
+
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
@@ -24,7 +36,7 @@ public final class HealthKitWorkoutSession: WorkoutHealthSession {
         guard HKHealthStore.isHealthDataAvailable() else { return .authorizationDenied }
 
         do {
-            try await healthStore.requestAuthorization(toShare: [Self.workoutType], read: [])
+            try await healthStore.requestAuthorization(toShare: [Self.workoutType], read: Self.collectedTypes)
         } catch {
             Self.logger.error("권한 요청 실패: \(String(describing: error), privacy: .public)")
             return .authorizationDenied
