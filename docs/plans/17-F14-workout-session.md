@@ -62,6 +62,9 @@ Package.swift 의 `.macOS(.v26)` 이 그대로 유지된다.
 
 ### 권한
 
+쓰기(`workoutType`)와 읽기(활동 에너지·기초 에너지·심박수)를 함께 요청한다. 읽기가 없으면
+운동은 남지만 **칼로리가 비어** 사용자는 기록이 안 된 것으로 받아들인다.
+
 거부돼도 앱은 그대로 동작한다. `WatchSyncService` 의 `lastSendError` 와 같은 방식으로
 실패를 삼키지 않고 남기되, 화면을 막지 않는다.
 
@@ -77,7 +80,11 @@ Package.swift 의 `.macOS(.v26)` 이 그대로 유지된다.
       자체는 플랫폼 무관으로 둔다. 원안대로 `#if os(watchOS)` 로 파일 전체를 감싸면
       테스트 계획의 4개 항목이 `swift test` 로 못 돈다(원칙 3). HealthKit 을 실제로
       쓰는 구현체(`HealthKitWorkoutSession`)만 `#if os(watchOS)` 로 감싼다
-- [x] 2. 권한 요청 — 쓰기 권한만(`workoutType`). 읽기는 요청하지 않는다
+- [x] 2. 권한 요청 — 쓰기(`workoutType`) + **읽기**(활동 에너지·기초 에너지·심박수)
+
+> **"읽기는 필요 없다"는 판단이 틀렸다.** `HKLiveWorkoutDataSource` 는 시스템이 기록한
+> 샘플을 읽어 운동 객체에 합산한다. 읽기 권한이 없으면 아무것도 모으지 못해 칼로리가
+> 비고 활동 링이 채워지지 않는다 — F-14 가 막으려던 바로 그 결과다.
 - [x] 3. `HKWorkoutBuilder` 로 세션 저장 — `traditionalStrengthTraining`, 실내
 - [x] 4. 실패 기록 — `lastError` 와 `os.Logger`. `WatchSyncService` 와 같은 모양
 - [x] 5. 권한 없음·시작 실패를 구분해 남긴다. 둘 다 "그냥 안 됨" 이 되면 원인을 못 찾는다
