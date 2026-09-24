@@ -79,6 +79,19 @@ public final class WatchSyncService: NSObject {
         session.delegate = self
     }
 
+    /// 세션이 도착할 때마다 워치 저장소를 정리한다(F-8 보관 범위).
+    ///
+    /// **정리를 세션 종료에만 두면 저장소가 계속 커진다** — 폰에서 동기화로 넘어온
+    /// 세션은 워치에서 끝나는 일이 없어 쌓이기만 한다. 저장소가 커지면 직전 기록 조회가
+    /// 느려지고, 앱이 앞으로 나올 때 10초 워치독에 걸려 강제 종료된다(0x8BADF00D).
+    ///
+    /// 늘어나는 자리에서 함께 줄이므로 평소에는 지울 것이 없어 비용이 없다.
+    private func pruneWatchStore() {
+        #if os(watchOS)
+        try? WatchRetention.prune(in: container.mainContext)
+        #endif
+    }
+
     /// 워치에서 온 변경을 앱 밖의 표시에 반영한다. **화면이 아니라 여기서 부른다** —
     /// 폰이 주머니에 있으면 `onChange` 가 돌지 않는다(계획 22).
     private func refreshPresence(sessionID: UUID?) {
@@ -253,6 +266,7 @@ public final class WatchSyncService: NSObject {
                 try context.save()
                 refreshPresence(sessionID: payload.sessionID)
             }
+            pruneWatchStore()
         } catch {
             assertionFailure("동기화 수신 실패: \(error)")
         }
@@ -358,6 +372,7 @@ public final class WatchSyncService: NSObject {
         if let arrived {
             latestInProgressSession = arrived
             refreshPresence(sessionID: arrived.sessionID)
+            pruneWatchStore()
         }
     }
 }
