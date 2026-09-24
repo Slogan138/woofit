@@ -328,3 +328,91 @@ func bodyweightExerciseUsesRepsAsMetric() {
 func weightedExerciseUsesVolumeAsMetric() {
     #expect(series([session(day(3, 1), "벤치프레스", [(60, 10, .success)])]).metric == .volume)
 }
+
+// MARK: - 직전 기록을 한 번에 모으기 (성능 회귀)
+
+/// 종목마다 세션 전체를 다시 훑던 것을 한 번의 조회로 바꿨다. 아래는 그때 깨지기
+/// 쉬운 경계를 고정한다 — 실기기에서 이 조회가 10초 워치독에 걸려 앱이 죽었다.
+
+@MainActor
+@Test("종목마다 서로 다른 세션에서 직전 기록을 찾는다")
+func lastRecordsComeFromDifferentSessions() throws {
+    // 한 번에 모으면서 "가장 최근에 그 종목을 한 세션"이라는 규칙이 유지되어야 한다.
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+    let base = Date(timeIntervalSince1970: 1_788_000_000)
+
+    let old = Routine(name: "옛날", category: "가슴")
+    context.insert(old)
+    old.appendExercise(named: "벤치프레스").appendSets(count: 2, weight: 40, reps: 10)
+    old.appendExercise(named: "펙덱").appendSets(count: 2, weight: 30, reps: 15)
+    let oldSession = WorkoutSession.start(from: old, at: base)
+    context.insert(oldSession)
+    for set in oldSession.allSets { set.markSuccess(at: base) }
+    oldSession.finish(at: base)
+
+    // 최근 세션에는 벤치프레스만 있다 — 펙덱은 옛 세션에서 찾아야 한다.
+    let recent = Routine(name: "최근", category: "가슴")
+    context.insert(recent)
+    recent.appendExercise(named: "벤치프레스").appendSets(count: 2, weight: 50, reps: 8)
+    let recentSession = WorkoutSession.start(from: recent, at: base.addingTimeInterval(86_400))
+    context.insert(recentSession)
+    for set in recentSession.allSets { set.markSuccess(at: base.addingTimeInterval(86_400)) }
+    recentSession.finish(at: base.addingTimeInterval(86_400))
+
+    let records = try LastRecordLookup.fetchAll(for: old, in: context)
+
+    #expect(records["벤치프레스"]?.entries.first?.weight == 50)
+    #expect(records["펙덱"]?.entries.first?.weight == 30)
+}
+
+@MainActor
+@Test("기록이 하나도 없는 세션은 직전 기록이 되지 않는다")
+func emptySessionIsNotALastRecord() throws {
+    // 시작만 하고 중단한 세션이 직전 기록으로 잡히면, 다음 세션에 빈 값이 보인다.
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+    let base = Date(timeIntervalSince1970: 1_788_000_000)
+
+    let routine = Routine(name: "가슴", category: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 2, weight: 40, reps: 10)
+
+    let done = WorkoutSession.start(from: routine, at: base)
+    context.insert(done)
+    for set in done.allSets { set.markSuccess(at: base) }
+    done.finish(at: base)
+
+    let abandoned = WorkoutSession.start(from: routine, at: base.addingTimeInterval(86_400))
+    context.insert(abandoned)
+    abandoned.abandon(at: base.addingTimeInterval(86_400))
+
+    let records = try LastRecordLookup.fetchAll(for: routine, in: context)
+
+    #expect(records["벤치프레스"]?.performedAt == base)
+}
+
+@MainActor
+@Test("진행 중인 세션은 직전 기록이 되지 않는다")
+func inProgressSessionIsNotALastRecord() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let context = container.mainContext
+    let base = Date(timeIntervalSince1970: 1_788_000_000)
+
+    let routine = Routine(name: "가슴", category: "가슴")
+    context.insert(routine)
+    routine.appendExercise(named: "벤치프레스").appendSets(count: 2, weight: 40, reps: 10)
+
+    let done = WorkoutSession.start(from: routine, at: base)
+    context.insert(done)
+    for set in done.allSets { set.markSuccess(at: base) }
+    done.finish(at: base)
+
+    let running = WorkoutSession.start(from: routine, at: base.addingTimeInterval(86_400))
+    context.insert(running)
+    running.allSets[0].markSuccess(at: base.addingTimeInterval(86_400))
+
+    let records = try LastRecordLookup.fetchAll(for: routine, in: context)
+
+    #expect(records["벤치프레스"]?.performedAt == base)
+}

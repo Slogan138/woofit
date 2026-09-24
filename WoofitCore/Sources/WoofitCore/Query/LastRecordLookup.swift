@@ -78,19 +78,64 @@ public enum LastRecordLookup {
         try fetchAll(for: session.sortedExercises, in: context)
     }
 
+    /// **세션을 한 번만 읽는다.** 종목마다 `fetch(normalizedName:)` 을 부르면 그때마다
+    /// 최근 세션을 전부 훑으며 종목·세트를 메모리로 끌어올린다. 종목이 여섯이면 그것이
+    /// 여섯 번이고, 아직 한 번도 안 한 종목은 매번 끝까지 훑는다.
+    ///
+    /// 실기기에서 워치가 10초 워치독에 걸려 강제 종료됐다(`0x8BADF00D`). 앱이 앞으로
+    /// 나올 때 이 조회가 메인 스레드에서 돌기 때문이다 — "세션 수가 많아도 첫 일치에서
+    /// 끊으므로 문제되지 않는다"고 적어둔 판단이 틀렸다.
     private static func fetchAll(
         for exercises: [some NormalizedNamedExercise],
         in context: ModelContext
     ) throws -> [String: LastRecord] {
+        var wanted = Set(exercises.map(\.normalizedName))
+        wanted.remove("")
+        guard !wanted.isEmpty else { return [:] }
+
         var result: [String: LastRecord] = [:]
-        for exercise in exercises {
-            let key = exercise.normalizedName
-            guard result[key] == nil else { continue }
-            if let record = try fetch(normalizedName: key, in: context) {
-                result[key] = record
+        for session in try recentSessions(in: context) {
+            for exercise in session.sortedExercises where wanted.contains(exercise.normalizedName) {
+                guard let record = record(for: exercise, in: session) else { continue }
+                result[exercise.normalizedName] = record
+                wanted.remove(exercise.normalizedName)
             }
+            // 찾을 것이 남지 않으면 더 훑지 않는다.
+            if wanted.isEmpty { break }
         }
         return result
+    }
+
+    /// 끝난 세션을 최근 순으로. 진행 중인 세션은 아직 직전 기록이 아니다.
+    private static func recentSessions(in context: ModelContext) throws -> [WorkoutSession] {
+        let inProgress = SessionState.inProgress.rawValue
+        var descriptor = FetchDescriptor<WorkoutSession>(
+            predicate: #Predicate { $0.stateRaw != inProgress },
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 200
+        return try context.fetch(descriptor)
+    }
+
+    /// 기록된 세트가 하나도 없으면 직전 기록이 아니다 — 시작만 하고 중단한 세션이 그렇다.
+    private static func record(for exercise: SessionExercise, in session: WorkoutSession) -> LastRecord? {
+        let entries = exercise.sortedSets
+            .filter { $0.result.isRecorded }
+            .map {
+                LastRecord.Entry(
+                    weight: $0.performedWeight,
+                    targetReps: $0.targetReps,
+                    performedReps: $0.performedReps,
+                    result: $0.result
+                )
+            }
+        guard !entries.isEmpty else { return nil }
+        return LastRecord(
+            normalizedName: exercise.normalizedName,
+            displayName: exercise.name,
+            performedAt: session.startedAt,
+            entries: entries
+        )
     }
 }
 
