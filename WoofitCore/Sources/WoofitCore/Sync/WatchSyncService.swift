@@ -213,6 +213,9 @@ public final class WatchSyncService: NSObject {
             // 돌려받는 전송 객체는 취소용이다. 큐에 넣는 것이 목적이라 쓰지 않는다.
             // 버리지 않으면 `track` 의 반환값이 되어 호출부에서 미사용 경고가 난다.
             _ = session.transferUserInfo([Self.routineRequestKey: true])
+            // 보냈다는 기록이 없으면, 루틴이 안 올 때 "요청이 안 나간 것"과 "폰이 못
+            // 받은 것"을 가릴 수 없다.
+            Self.logger.info("루틴을 요청했다")
         }
     }
 

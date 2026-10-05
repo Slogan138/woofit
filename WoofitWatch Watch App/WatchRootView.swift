@@ -48,10 +48,13 @@ struct WatchRootView: View {
             .navigationTitle("Woofit")
             .overlay {
                 if routines.isEmpty {
+                    // **"폰에서 만드세요"가 아니다.** 루틴은 폰에 이미 있는데 전달만 안 된
+                    // 경우가 대부분이다. iOS 는 앱을 설치한 뒤 사용자가 한 번 직접 열기
+                    // 전까지 백그라운드로 깨우지 않아, 워치가 보낸 요청을 받을 주체가 없다.
                     ContentUnavailableView(
                         "루틴 없음",
-                        systemImage: "dumbbell",
-                        description: Text("폰에서 루틴을 만드세요.")
+                        systemImage: "iphone.and.arrow.forward",
+                        description: Text("아이폰에서 Woofit 을 한 번 열면 루틴이 넘어옵니다.")
                     )
                 }
             }
