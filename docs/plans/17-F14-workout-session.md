@@ -81,6 +81,10 @@ Package.swift 의 `.macOS(.v26)` 이 그대로 유지된다.
       테스트 계획의 4개 항목이 `swift test` 로 못 돈다(원칙 3). HealthKit 을 실제로
       쓰는 구현체(`HealthKitWorkoutSession`)만 `#if os(watchOS)` 로 감싼다
 - [x] 2. 권한 요청 — 쓰기(`workoutType`) + **읽기**(활동 에너지·기초 에너지·심박수)
+- [x] 2-1. Info.plist 에 **두 설명이 모두** 있는지 확인 — `NSHealthUpdateUsageDescription`
+      (쓰기)과 `NSHealthShareUsageDescription`(읽기). 읽기 설명이 없으면 권한이 거부되는
+      것이 아니라 **앱이 죽는다.** 빌드 산출물로 확인한다:
+      `plutil -p "$BUILT/WoofitWatch Watch App.app/Info.plist" | grep Health`
 
 > **"읽기는 필요 없다"는 판단이 틀렸다.** `HKLiveWorkoutDataSource` 는 시스템이 기록한
 > 샘플을 읽어 운동 객체에 합산한다. 읽기 권한이 없으면 아무것도 모으지 못해 칼로리가

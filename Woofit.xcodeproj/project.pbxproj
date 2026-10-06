@@ -468,6 +468,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Woofit;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "운동 중 심박수와 소모 칼로리를 읽어 이 운동의 기록에 합산합니다.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "운동을 마치면 근력 운동 기록을 건강 앱에 저장합니다.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKApplication = YES;
@@ -500,6 +501,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Woofit;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "운동 중 심박수와 소모 칼로리를 읽어 이 운동의 기록에 합산합니다.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "운동을 마치면 근력 운동 기록을 건강 앱에 저장합니다.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKApplication = YES;

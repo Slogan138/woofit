@@ -18,6 +18,10 @@ public final class HealthKitWorkoutSession: WorkoutHealthSession {
     ///
     /// 심박수가 상세 화면에 보이는 것과는 별개다 — 그건 건강 앱이 같은 시간대 샘플을
     /// 자체적으로 읽어 그리는 것이고, 칼로리는 운동에 붙은 합계값이다.
+    ///
+    /// **읽기를 요청하려면 `NSHealthShareUsageDescription` 이 Info.plist 에 있어야 한다.**
+    /// 없으면 권한이 거부되는 게 아니라 **앱이 그 자리에서 죽는다.** 이 호출은 세션을
+    /// 시작할 때 일어나므로, 운동을 시작할 때마다 앱이 죽는다 — 실제로 그랬다.
     private nonisolated static let collectedTypes: Set<HKObjectType> = [
         HKQuantityType(.activeEnergyBurned),
         HKQuantityType(.basalEnergyBurned),
