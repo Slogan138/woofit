@@ -36,10 +36,14 @@ public final class WatchSyncService: NSObject {
     /// (헬스장에서 전송을 기다리게 할 수 없다, F-3) 실기기 진단은 이 값과 로그에 의존한다(리뷰 지적 ②).
     public private(set) var lastSendError: Error?
 
-    /// 가장 최근에 받아 저장소에 반영한 진행 중 세션.
+    /// 가장 최근에 받아 저장소에 반영한 세션. 끝난 세션의 최종 상태도 담는다.
     ///
-    /// 화면은 이 값을 `onChange(of:)` 로 지켜보다가 그 세션을 연다(F-8).
+    /// 화면은 이 값을 `onChange(of:)` 로 지켜보다가 그 세션을 열고, 끝난 상태면 닫는다(F-8).
     /// **저장이 끝난 뒤에 대입한다** — 화면이 곧바로 저장소를 다시 읽기 때문이다.
+    ///
+    /// **두 수신 경로 모두에서 갱신해야 한다.** 컨텍스트에서만 갱신하면, 워치가 보장
+    /// 채널로 보낸 종료 스냅샷이 도착해도 열려 있는 화면이 그대로 남는다 — 폰 앱이
+    /// 꺼진 채 워치로 운동을 마치면 다음에 폰을 열었을 때 첫 세트 화면이 떠 있었다.
     public private(set) var latestInProgressSession: SessionSnapshotPayload?
 
     /// 마지막으로 반영한 컨텍스트. 같은 것을 다시 병합하지 않기 위해 들고 있는다 —
@@ -268,6 +272,9 @@ public final class WatchSyncService: NSObject {
                 try SyncMerger.merge(payload, into: context)
                 try context.save()
                 refreshPresence(sessionID: payload.sessionID)
+                // 열려 있는 화면이 이 변화를 알아야 닫힌다. 컨텍스트 경로에만 두면
+                // 그쪽은 최선 노력 전달이라 언제 올지 모른다.
+                latestInProgressSession = payload
             }
             pruneWatchStore()
         } catch {
