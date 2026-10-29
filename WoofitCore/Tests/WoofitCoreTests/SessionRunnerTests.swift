@@ -706,3 +706,61 @@ func restStartsAfterRunnerIsRecreated() throws {
     restored.toggleRest(at: now.addingTimeInterval(3))
     #expect(restored.restingSet?.id == session.allSets[0].id)
 }
+
+// MARK: - 미디어 화면을 보는 동안의 세션 유지 (F-20)
+
+@MainActor
+@Test("휴식 중 표시값을 다시 읽어도 기록과 초점은 유지되고 경과 시간만 증가한다")
+func readingSessionDuringRestPreservesWorkout() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let routine = makeRoutine(sets: 3)
+    container.mainContext.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    container.mainContext.insert(session)
+    let runner = SessionRunner(session: session)
+    let startedAt = Date(timeIntervalSince1970: 1_800_000_000)
+    runner.recordSuccess(at: startedAt)
+    runner.toggleRest(at: startedAt)
+    let resting = try #require(runner.restingSet)
+    let focusedID = try #require(runner.focusedSet).id
+    let phase = runner.phase
+
+    for elapsed in [30.0, 300.0, 1800.0] {
+        #expect(runner.restingSet?.elapsedRest(at: startedAt.addingTimeInterval(elapsed)) == elapsed)
+        #expect(runner.focusedSet?.id == focusedID)
+        #expect(runner.phase == phase)
+        #expect(session.recordedSetCount == 1)
+        #expect(session.state == .inProgress)
+        #expect(!runner.isPaused)
+        #expect(resting.restStartedAt == startedAt)
+        #expect(resting.restSeconds == nil)
+    }
+    runner.toggleRest(at: startedAt.addingTimeInterval(1805))
+    #expect(resting.restSeconds == 1805)
+}
+
+@MainActor
+@Test("미디어 이용 중 상대 기록을 반영해도 진행 중 휴식과 세션을 유지한다")
+func remoteRefreshPreservesRunningRest() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let routine = makeRoutine(sets: 3)
+    container.mainContext.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    container.mainContext.insert(session)
+    let runner = SessionRunner(session: session)
+    let startedAt = Date(timeIntervalSince1970: 1_800_000_000)
+    runner.recordSuccess(at: startedAt)
+    let first = try #require(runner.lastRecordedSet)
+    // 병합 이후의 모델 상태: 폰에서 다음 세트를 기록하고 그 세트의 휴식을 시작했다.
+    let remoteSet = try #require(runner.focusedSet)
+    remoteSet.markSuccess(at: startedAt.addingTimeInterval(60))
+    remoteSet.startRest(at: startedAt.addingTimeInterval(65))
+    runner.refreshFromRemoteChange()
+
+    #expect(session.state == .inProgress)
+    #expect(session.recordedSetCount == 2)
+    #expect(first.result == .success)
+    #expect(runner.focusedSet?.id == session.allSets[2].id)
+    #expect(runner.restingSet?.id == remoteSet.id)
+    #expect(remoteSet.elapsedRest(at: startedAt.addingTimeInterval(95)) == 30)
+}

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WatchKit
 import WoofitCore
 
 /// W3 · 워치 세트 실행. 화면이 작으므로 현재 세트 하나만 크게 보여주고
@@ -15,6 +16,7 @@ struct WatchSetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.watchSyncService) private var syncService
     @Environment(\.workoutSessionController) private var workoutSessionController
+    @State private var selectedPage = SessionPage.workout
     @State private var pendingFailureSet: SessionSet?
     @State private var isConfirmingAbandon = false
     @State private var recordFeedback = RecordFeedback()
@@ -36,34 +38,33 @@ struct WatchSetView: View {
 
     var body: some View {
         Group {
-            switch runner.phase {
-            case .recording(let exercise):
-                recordingContent(for: exercise)
-            case .transition(let from, let to):
-                WatchNextExerciseView(
-                    from: from,
-                    to: to,
-                    lastRecordedSet: runner.lastRecordedSet,
-                    onStart: {
-                        if let next = to.nextPendingSet {
-                            runner.focus(on: next)
-                        }
-                    },
-                    onUndoLast: {
-                        if let last = runner.lastRecordedSet {
-                            runner.undo(last)
-                        }
-                    }
-                )
-            case .finished:
+            if runner.phase == .finished {
                 finishedContent
+            } else {
+                TabView(selection: $selectedPage) {
+                    workoutContent
+                        .disabled(selectedPage != .workout)
+                        .scrollDisabled(selectedPage != .workout)
+                        .allowsHitTesting(selectedPage == .workout)
+                        .accessibilityHidden(selectedPage != .workout)
+                        .tag(SessionPage.workout)
+
+                    NowPlayingView()
+                        .disabled(selectedPage != .media)
+                        .allowsHitTesting(selectedPage == .media)
+                        .accessibilityHidden(selectedPage != .media)
+                        .tag(SessionPage.media)
+                }
+                .tabViewStyle(.page)
             }
         }
-        .navigationTitle(runner.session.routineName)
+        .navigationTitle(selectedPage == .workout ? runner.session.routineName : "")
         .navigationBarBackButtonHidden()
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("중단", role: .destructive) { isConfirmingAbandon = true }
+            if selectedPage == .workout {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("중단", role: .destructive) { isConfirmingAbandon = true }
+                }
             }
         }
         // 손목에서는 화면을 안 볼 때도 기록됐음을 알아야 한다. 성공·실패를 다른 신호로 준다.
@@ -104,7 +105,40 @@ struct WatchSetView: View {
         // 마지막 세트를 기록하면 SessionRunner 가 세션을 자동으로 완료 처리한다(F-4).
         .onChange(of: runner.phase) { _, phase in
             guard case .finished = phase else { return }
+            selectedPage = .workout
             finishSession()
+        }
+    }
+
+    private enum SessionPage: Hashable {
+        case workout
+        case media
+    }
+
+    private var workoutContent: some View {
+        Group {
+            switch runner.phase {
+            case .recording(let exercise):
+                recordingContent(for: exercise)
+            case .transition(let from, let to):
+                WatchNextExerciseView(
+                    from: from,
+                    to: to,
+                    lastRecordedSet: runner.lastRecordedSet,
+                    onStart: {
+                        if let next = to.nextPendingSet {
+                            runner.focus(on: next)
+                        }
+                    },
+                    onUndoLast: {
+                        if let last = runner.lastRecordedSet {
+                            runner.undo(last)
+                        }
+                    }
+                )
+            case .finished:
+                finishedContent
+            }
         }
     }
 
@@ -171,7 +205,8 @@ struct WatchSetView: View {
                             .buttonStyle(.borderedProminent)
                             // 바를 잡은 손·땀 손이 이 앱의 실제 사용 맥락이라 더블 탭으로도
                             // 기록되게 한다. 애플이 정한 표준 제스처다(원칙 1).
-                            .handGestureShortcut(.primaryAction)
+                            // 화면 밖 컨트롤도 단축키 후보가 되므로 선택 페이지로 제한한다(F-20).
+                            .handGestureShortcut(.primaryAction, isEnabled: selectedPage == .workout)
                     }
                     // 땀 손으로 가장 자주 누르는 버튼이라 최소 터치 영역을 키운다(디자인 토큰 계획 ⑤).
                     .controlSize(.large)
@@ -208,7 +243,10 @@ struct WatchSetView: View {
             // 버튼·되돌리기 링크의 제스처가 더 안쪽이라 우선하므로, 여기 닿는 탭은
             // 그 밖의 화면 전체를 뜻한다(F-5 수용 기준). 배터리 때문에 Timer 대신
             // WatchRestView 가 TimelineView 로 표시만 갱신한다.
-            .onTapGesture { runner.toggleRest() }
+            .onTapGesture {
+                guard selectedPage == .workout else { return }
+                runner.toggleRest()
+            }
         }
     }
 
