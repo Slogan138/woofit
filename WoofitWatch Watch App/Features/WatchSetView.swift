@@ -49,8 +49,7 @@ struct WatchSetView: View {
                         .accessibilityHidden(selectedPage != .workout)
                         .tag(SessionPage.workout)
 
-                    NowPlayingView()
-                        .ignoresSafeArea()
+                    WatchMediaView()
                         .disabled(selectedPage != .media)
                         .allowsHitTesting(selectedPage == .media)
                         .accessibilityHidden(selectedPage != .media)
