@@ -62,9 +62,7 @@ struct WatchRootView: View {
         .environment(coordinator)
         // 폰에서 시작한 세션을 그대로 연다(F-8). 워치에서 시작한 세션도 같은 자리로 열린다.
         .fullScreenCover(item: $coordinator.activeRunner) { runner in
-            NavigationStack {
-                WatchSetView(runner: runner, onEnd: { coordinator.endSession() })
-            }
+            WatchSetView(runner: runner, onEnd: { coordinator.endSession() })
         }
         .task {
             // 앱이 꺼져 있는 동안 폰에서 시작한 세션은 활성화 시점에 저장소로 들어온다.

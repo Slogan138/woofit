@@ -39,10 +39,10 @@ struct WatchSetView: View {
     var body: some View {
         Group {
             if runner.phase == .finished {
-                finishedContent
+                workoutPage
             } else {
                 TabView(selection: $selectedPage) {
-                    workoutContent
+                    workoutPage
                         .disabled(selectedPage != .workout)
                         .scrollDisabled(selectedPage != .workout)
                         .allowsHitTesting(selectedPage == .workout)
@@ -50,21 +50,15 @@ struct WatchSetView: View {
                         .tag(SessionPage.workout)
 
                     NowPlayingView()
+                        .ignoresSafeArea()
                         .disabled(selectedPage != .media)
                         .allowsHitTesting(selectedPage == .media)
                         .accessibilityHidden(selectedPage != .media)
                         .tag(SessionPage.media)
                 }
-                .tabViewStyle(.page)
-            }
-        }
-        .navigationTitle(selectedPage == .workout ? runner.session.routineName : "")
-        .navigationBarBackButtonHidden()
-        .toolbar {
-            if selectedPage == .workout {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("중단", role: .destructive) { isConfirmingAbandon = true }
-                }
+                // 시스템 플레이어는 화면 전체가 필요하다. 페이지 점도 별도 공간을 차지하지 않게 한다(F-20).
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
             }
         }
         // 손목에서는 화면을 안 볼 때도 기록됐음을 알아야 한다. 성공·실패를 다른 신호로 준다.
@@ -113,6 +107,20 @@ struct WatchSetView: View {
     private enum SessionPage: Hashable {
         case workout
         case media
+    }
+
+    private var workoutPage: some View {
+        // 미디어가 운동용 내비게이션 여백을 상속하지 않도록 페이지 안에 둔다(F-20).
+        NavigationStack {
+            workoutContent
+                .navigationTitle(runner.session.routineName)
+                .navigationBarBackButtonHidden()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("중단", role: .destructive) { isConfirmingAbandon = true }
+                    }
+                }
+        }
     }
 
     private var workoutContent: some View {
@@ -391,8 +399,6 @@ private struct DeltaBadge: View {
     container.mainContext.insert(session)
     let runner = SessionRunner(session: session)
 
-    return NavigationStack {
-        WatchSetView(runner: runner, onEnd: {})
-    }
-    .modelContainer(container)
+    return WatchSetView(runner: runner, onEnd: {})
+        .modelContainer(container)
 }
