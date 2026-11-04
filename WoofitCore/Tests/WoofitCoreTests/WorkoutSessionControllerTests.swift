@@ -12,6 +12,8 @@ private final class FakeWorkoutHealthSession: WorkoutHealthSession, @unchecked S
     /// 0 보다 크면 `start()` 가 그만큼 걸린다 — 시작이 끝나기 전에 `end()` 가 먼저
     /// 불리는 실기기 타이밍(짧은 세션)을 흉내내는 데 쓴다.
     var startDelayNanoseconds: UInt64 = 0
+    var endDelayNanoseconds: UInt64 = 0
+    private(set) var endDidFinish = false
 
     func start() async -> WorkoutSessionError? {
         startCallCount += 1
@@ -23,6 +25,8 @@ private final class FakeWorkoutHealthSession: WorkoutHealthSession, @unchecked S
 
     func end() async -> WorkoutSessionError? {
         endCallCount += 1
+        if endDelayNanoseconds > 0 { try? await Task.sleep(nanoseconds: endDelayNanoseconds) }
+        endDidFinish = true
         return endResult
     }
 }
@@ -162,4 +166,36 @@ func normalSessionStartsAndEndsOnce() async {
 
     #expect(fake.startCallCount == 1)
     #expect(fake.endCallCount == 1)
+}
+
+@MainActor
+@Test("화면 완료와 닫기가 겹치면 같은 운동 종료 작업이 끝날 때까지 기다린다")
+func concurrentEndWaitsForSameOperation() async {
+    let fake = FakeWorkoutHealthSession()
+    fake.endDelayNanoseconds = 20_000_000
+    let controller = WorkoutSessionController(healthSession: fake)
+    await controller.start()
+    let firstEnd = Task { await controller.end() }
+    while fake.endCallCount == 0 { await Task.yield() }
+
+    await controller.end()
+    #expect(fake.endDidFinish)
+    #expect(fake.endCallCount == 1)
+    await firstEnd.value
+}
+
+@MainActor
+@Test("이전 운동 종료 중 새 시작은 종료 완료를 기다린다")
+func newStartWaitsForPreviousEnd() async {
+    let fake = FakeWorkoutHealthSession()
+    fake.endDelayNanoseconds = 20_000_000
+    let controller = WorkoutSessionController(healthSession: fake)
+    await controller.start()
+    let ending = Task { await controller.end() }
+    while fake.endCallCount == 0 { await Task.yield() }
+
+    await controller.start()
+    #expect(fake.endDidFinish)
+    #expect(fake.startCallCount == 2)
+    await ending.value
 }

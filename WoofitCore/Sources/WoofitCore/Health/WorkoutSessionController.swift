@@ -38,6 +38,7 @@ public final class WorkoutSessionController {
     /// (건강 앱에 시작·종료 시각이 안 맞는 기록으로 남은 원인). `end()` 가 이 작업을 먼저
     /// 기다리게 해서 막는다.
     private var inFlightStart: Task<Void, Never>?
+    private var inFlightEnd: Task<Void, Never>?
 
     /// 가장 최근 시작·종료에서 발생한 오류. `WatchSyncService.lastSendError` 와 같은 모양이다.
     public private(set) var lastError: WorkoutSessionError?
@@ -48,6 +49,7 @@ public final class WorkoutSessionController {
 
     /// 이미 진행 중이거나 진행 중인 시작이 있으면 그 결과를 기다린다 — 두 번 불러도 세션은 하나다.
     public func start() async {
+        await inFlightEnd?.value
         if let inFlightStart {
             await inFlightStart.value
             return
@@ -72,6 +74,18 @@ public final class WorkoutSessionController {
     /// 시작한 적이 없으면 안전하게 무시한다 — 중복 종료도, 복원 뒤 잘못된 종료 호출도 이걸로 막는다.
     /// 진행 중인 시작이 있으면 먼저 끝나길 기다린 뒤 판단한다.
     public func end() async {
+        if let inFlightEnd {
+            await inFlightEnd.value
+            return
+        }
+        // 완료와 화면 닫기가 겹쳐도 다음 시작은 실제 HealthKit 종료를 기다린다(F-14).
+        let task = Task { await self.performEnd() }
+        inFlightEnd = task
+        await task.value
+        inFlightEnd = nil
+    }
+
+    private func performEnd() async {
         await inFlightStart?.value
         guard isActive else { return }
         isActive = false

@@ -10,6 +10,7 @@ import WoofitCore
 @Observable
 final class WatchSessionCoordinator {
     var activeRunner: SessionRunner?
+    private(set) var isEndingSession = false
 
     /// 워치에서 세션을 새로 시작한다. 폰이 곧바로 이어받도록 진행 상태도 보낸다(F-8).
     func start(
@@ -18,6 +19,7 @@ final class WatchSessionCoordinator {
         syncService: WatchSyncService?,
         workoutSessionController: WorkoutSessionController?
     ) {
+        guard !isEndingSession else { return }
         // 남아 있던 진행 중 세션을 먼저 정리한다(계획 21). 상대 기기에서 새 세션이
         // 도착할 때 `SyncMerger` 가 하는 것과 같은 일을 로컬 시작 경로에서도 한다.
         _ = try? SessionLifetime.closeOpenSessions(in: context)
@@ -43,7 +45,7 @@ final class WatchSessionCoordinator {
     /// 사라졌고(PRD D14), 켜지 않으면 이어받기로 운동하는 내내 워치 앱이 휴식마다
     /// 내려간다 — 그것이 끝나지 않은 세션이 쌓이는 주된 경로였다(계획 21).
     func restoreIfNeeded(in context: ModelContext, workoutSessionController: WorkoutSessionController? = nil) {
-        guard activeRunner == nil else { return }
+        guard activeRunner == nil, !isEndingSession else { return }
         guard let session = try? SessionRestore.fetchInProgress(in: context) else { return }
         activeRunner = SessionRunner(
             session: session,
@@ -54,7 +56,27 @@ final class WatchSessionCoordinator {
         }
     }
 
-    func endSession() {
+    /// 시스템 X와 명시적 완료·원격 종료가 같은 정리 경로를 거친다(F-14).
+    func endSession(
+        in context: ModelContext,
+        syncService: WatchSyncService?,
+        workoutSessionController: WorkoutSessionController?
+    ) {
+        guard let runner = activeRunner else { return }
+        if runner.closeForDismissal() {
+            // 종료된 상태를 먼저 저장해야 재활성화가 같은 운동을 복원하지 않는다.
+            try? context.save()
+            let snapshot = SessionSnapshotPayload.make(for: runner.session)
+            try? syncService?.sendSessionSnapshot(snapshot)
+            try? syncService?.sendInProgressSession(snapshot)
+            try? WatchRetention.prune(in: context)
+        }
+        isEndingSession = true
         activeRunner = nil
+        Task {
+            // 화면의 완료 콜백과 겹쳐도 컨트롤러의 end는 중복 종료를 막는다.
+            await workoutSessionController?.end()
+            isEndingSession = false
+        }
     }
 }
