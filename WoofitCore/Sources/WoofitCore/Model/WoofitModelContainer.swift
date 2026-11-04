@@ -16,7 +16,8 @@ public enum WoofitModelContainer {
         PlannedSet.self,
         WorkoutSession.self,
         SessionExercise.self,
-        SessionSet.self
+        SessionSet.self,
+        DeletedSession.self
     ])
 
     /// 앱에서 쓰는 영구 저장소.

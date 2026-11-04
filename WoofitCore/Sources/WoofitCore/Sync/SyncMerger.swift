@@ -11,8 +11,10 @@ public enum SyncMerger {
 
     /// 멱등. 같은 payload 를 두 번 넣어도 결과가 같다.
     /// 세션·종목·세트가 없으면 만든다 — 세트별 전송이 순서 없이 도착할 수 있어서다.
+    /// 사용자가 삭제한 세션이면 nil로 무시한다(F-12).
     @discardableResult
-    public static func merge(_ payload: SetResultPayload, into context: ModelContext) throws -> SessionSet {
+    public static func merge(_ payload: SetResultPayload, into context: ModelContext) throws -> SessionSet? {
+        guard try !SessionDeletion.contains(payload.sessionID, in: context) else { return nil }
         let session = try fetchOrCreateSession(payload, in: context)
         let exercise = try fetchOrCreateExercise(payload, in: session, context: context)
         let set = try fetchOrCreateSet(payload, in: exercise, context: context)
@@ -25,13 +27,16 @@ public enum SyncMerger {
     /// 담긴 세트마다 위 `merge(_:into:)` 를 그대로 호출한다. 미수행 세트(`recordedAt`
     /// 없음)도 포함돼 있어 세션 전체 구조(세트 개수 등)가 복원된다 — 기록값은 덮어쓰지
     /// 않는다(`apply` 참고).
-    public static func merge(_ payload: SessionSnapshotPayload, into context: ModelContext) throws {
+    @discardableResult
+    public static func merge(_ payload: SessionSnapshotPayload, into context: ModelContext) throws -> Bool {
+        guard try !SessionDeletion.contains(payload.sessionID, in: context) else { return false }
         let session = try fetchOrCreateSession(payload, in: context)
         for setPayload in payload.sets {
             try merge(setPayload, into: context)
         }
         session.endedAt = payload.endedAt
         session.state = payload.state
+        return true
     }
 
     // MARK: - 진행 중 세션 (양방향)
@@ -48,15 +53,16 @@ public enum SyncMerger {
     /// 폰의 옛 컨텍스트가 지금 진행 중인 세션을 중단시킨다 — 그때 휴식 측정도 함께
     /// 멈춰서, 다음 세트를 기록하면 `reopen()` 으로 조용히 되살아나 타이머만 리셋된
     /// 것처럼 보였다(F-5).
+    @discardableResult
     public static func mergeInProgress(
         _ payload: SessionSnapshotPayload,
         into context: ModelContext,
         at date: Date = Date()
-    ) throws {
-        try merge(payload, into: context)
+    ) throws -> Bool {
+        guard try merge(payload, into: context) else { return false }
 
         // 끝난 세션 스냅샷은 "지금 어느 세션이 살아있는가"를 말해주지 않는다.
-        guard payload.state == .inProgress else { return }
+        guard payload.state == .inProgress else { return true }
 
         for session in try context.fetch(FetchDescriptor<WorkoutSession>())
         where session.state == .inProgress
@@ -64,6 +70,7 @@ public enum SyncMerger {
             && session.startedAt < payload.startedAt {
             session.abandon(at: date)
         }
+        return true
     }
 
     // MARK: - 루틴 (폰 → 워치)
