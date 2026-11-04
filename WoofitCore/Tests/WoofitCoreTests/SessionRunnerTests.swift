@@ -764,3 +764,50 @@ func remoteRefreshPreservesRunningRest() throws {
     #expect(runner.restingSet?.id == remoteSet.id)
     #expect(remoteSet.elapsedRest(at: startedAt.addingTimeInterval(95)) == 30)
 }
+
+@MainActor
+@Test("화면을 닫으면 진행 중 세션을 중단하고 실제 기록과 휴식 시간을 보존한다")
+func dismissSessionPreservesRecordsAndStopsRest() throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let routine = makeRoutine(sets: 3)
+    container.mainContext.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    container.mainContext.insert(session)
+    let runner = SessionRunner(session: session)
+    let date = Date()
+    runner.recordFailure(actualReps: 3, actualWeight: 70, at: date)
+    runner.toggleRest(at: date)
+    let recorded = try #require(runner.lastRecordedSet)
+
+    #expect(runner.closeForDismissal(at: date.addingTimeInterval(45)))
+    #expect(session.state == .abandoned)
+    #expect(runner.phase == .finished)
+    #expect(runner.restingSet == nil)
+    #expect(recorded.actualReps == 3)
+    #expect(recorded.performedWeight == 70)
+    #expect(recorded.restSeconds == 45)
+    #expect(session.recordedSetCount == 1)
+    #expect(session.endedAt == date.addingTimeInterval(45))
+    try container.mainContext.save()
+    #expect(try SessionRestore.fetchInProgress(in: container.mainContext) == nil)
+    #expect(!runner.closeForDismissal(at: date.addingTimeInterval(90)))
+    #expect(session.endedAt == date.addingTimeInterval(45))
+}
+
+@MainActor
+@Test("완료 또는 중단된 세션을 닫아도 상태와 종료 시각은 바뀌지 않는다", arguments: [true, false])
+func dismissEndedSessionKeepsState(completed: Bool) throws {
+    let container = try WoofitModelContainer.makeInMemoryContainer()
+    let routine = makeRoutine(sets: 1)
+    container.mainContext.insert(routine)
+    let session = WorkoutSession.start(from: routine)
+    container.mainContext.insert(session)
+    let runner = SessionRunner(session: session)
+    if completed { runner.recordSuccess() } else { runner.abandon() }
+    let state = session.state
+    let endedAt = session.endedAt
+
+    #expect(!runner.closeForDismissal(at: Date().addingTimeInterval(60)))
+    #expect(session.state == state)
+    #expect(session.endedAt == endedAt)
+}

@@ -173,6 +173,16 @@ public final class SessionRunner: Identifiable, Hashable {
         session.abandon(at: date)
     }
 
+    /// 화면 닫기는 진행 중 기록만 중단한다. 이미 끝난 기록의 상태·종료 시각은 보존한다(F-14).
+    @discardableResult
+    public func closeForDismissal(at date: Date = Date()) -> Bool {
+        guard session.state == .inProgress else { return false }
+        session.abandon(at: date)
+        focusedSet = nil
+        phase = .finished
+        return true
+    }
+
     private func advanceFocus() {
         focusedSet = session.nextPendingSet
     }

@@ -25,8 +25,6 @@ struct WatchRootView: View {
     }
 
     var body: some View {
-        @Bindable var coordinator = coordinator
-
         NavigationStack {
             List {
                 if let todaysRoutine {
@@ -59,10 +57,17 @@ struct WatchRootView: View {
                 }
             }
         }
+        .disabled(coordinator.isEndingSession)
         .environment(coordinator)
         // 폰에서 시작한 세션을 그대로 연다(F-8). 워치에서 시작한 세션도 같은 자리로 열린다.
-        .fullScreenCover(item: $coordinator.activeRunner) { runner in
-            WatchSetView(runner: runner, onEnd: { coordinator.endSession() })
+        .fullScreenCover(item: Binding(
+            get: { coordinator.activeRunner },
+            set: { runner in
+                // 시스템 X는 완료 버튼을 거치지 않으므로 nil 변경을 공통 종료 처리에 연결한다(F-14).
+                if runner == nil { endSession() }
+            }
+        )) { runner in
+            WatchSetView(runner: runner, onEnd: endSession)
         }
         .task {
             // 앱이 꺼져 있는 동안 폰에서 시작한 세션은 활성화 시점에 저장소로 들어온다.
@@ -76,7 +81,7 @@ struct WatchRootView: View {
             if let runner = coordinator.activeRunner, runner.id == payload?.sessionID {
                 runner.refreshFromRemoteChange()
                 // 상대가 끝냈으면 이쪽 화면도 닫는다. 요약은 끝낸 기기가 보여준다.
-                if runner.session.state != .inProgress { coordinator.endSession() }
+                if runner.session.state != .inProgress { endSession() }
             }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -88,6 +93,14 @@ struct WatchRootView: View {
 }
 
 private extension WatchRootView {
+
+    func endSession() {
+        coordinator.endSession(
+            in: modelContext,
+            syncService: syncService,
+            workoutSessionController: workoutSessionController
+        )
+    }
 
     /// 루틴이 하나도 없으면 폰에 다시 보내달라고 한다(F-8).
     ///
