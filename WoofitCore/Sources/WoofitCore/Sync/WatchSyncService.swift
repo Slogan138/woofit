@@ -263,13 +263,14 @@ public final class WatchSyncService: NSObject {
         do {
             if let setResultData {
                 let payload = try JSONDecoder().decode(SetResultPayload.self, from: setResultData)
-                try SyncMerger.merge(payload, into: context)
-                try context.save()
-                refreshPresence(sessionID: payload.sessionID)
+                if try SyncMerger.merge(payload, into: context) != nil {
+                    try context.save()
+                    refreshPresence(sessionID: payload.sessionID)
+                }
             }
             if let snapshotData {
                 let payload = try JSONDecoder().decode(SessionSnapshotPayload.self, from: snapshotData)
-                try SyncMerger.merge(payload, into: context)
+                guard try SyncMerger.merge(payload, into: context) else { return }
                 try context.save()
                 refreshPresence(sessionID: payload.sessionID)
                 // 열려 있는 화면이 이 변화를 알아야 닫힌다. 컨텍스트 경로에만 두면
@@ -314,6 +315,10 @@ public final class WatchSyncService: NSObject {
     /// 활성화 직후와 앱이 앞으로 나올 때 부른다. **여러 번 불러도 안전하다** —
     /// 루틴은 전체 교체이고 세션 병합은 같은 `sessionID` 를 갱신할 뿐이다.
     public func consumeReceivedContext() {
+        #if os(iOS)
+        // 워치 앱을 지워도 아이폰의 과거 수신 컨텍스트는 남을 수 있다(F-12).
+        guard session.isWatchAppInstalled else { return }
+        #endif
         let context = session.receivedApplicationContext
         guard !context.isEmpty else { return }
         handleApplicationContext(
@@ -364,9 +369,10 @@ public final class WatchSyncService: NSObject {
         if let inProgressData,
            let payload = try? JSONDecoder().decode(SessionSnapshotPayload.self, from: inProgressData) {
             do {
-                try SyncMerger.mergeInProgress(payload, into: context)
-                changed = true
-                arrived = payload
+                if try SyncMerger.mergeInProgress(payload, into: context) {
+                    changed = true
+                    arrived = payload
+                }
             } catch {
                 assertionFailure("세션 동기화 수신 실패: \(error)")
             }
