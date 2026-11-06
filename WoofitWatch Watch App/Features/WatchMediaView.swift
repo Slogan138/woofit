@@ -19,11 +19,24 @@ struct WatchMediaView: View {
                     anchor: .topLeading
                 )
         }
+        // 바깥에서 clipped를 적용하면 확장된 미디어가 중앙 안전 영역에서 잘린다(F-20).
         .ignoresSafeArea()
-        .clipped()
     }
 }
 
-#Preview {
-    WatchMediaView()
+#Preview("세션 전체 화면 안의 미디어 페이지") {
+    @Previewable @State var isPresented = true
+    @Previewable @State var selectedPage = 1
+
+    Text("세션")
+        .fullScreenCover(isPresented: $isPresented) {
+            TabView(selection: $selectedPage) {
+                NavigationStack { Text("운동") }
+                    .tag(0)
+                WatchMediaView()
+                    .tag(1)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
+        }
 }
