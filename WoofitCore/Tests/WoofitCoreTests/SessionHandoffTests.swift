@@ -193,3 +193,67 @@ func staleContextKeepsRestRunning() throws {
     #expect(runner.restingSet != nil)
     #expect(live.allSets[0].restSeconds == nil)
 }
+
+@MainActor
+@Test("뒤늦은 세트 기록과 스냅샷이 휴식 시작과 종료를 되돌리지 않는다")
+func delayedUpdatesPreserveRest() throws {
+    let watch = try makeContainer()
+    let phone = try makeContainer()
+    let session = startedSession(named: "워치 운동", in: watch.mainContext)
+    let set = try #require(session.allSets.first)
+    let recorded = session.startedAt
+    set.markSuccess(at: recorded)
+    let queued = try #require(SetResultPayload.make(for: set))
+
+    let started = recorded.addingTimeInterval(5)
+    set.startRest(at: started)
+    let running = SessionSnapshotPayload.make(for: session)
+    try SyncMerger.mergeInProgress(running, into: phone.mainContext)
+    let received = try #require(try SyncMerger.merge(queued, into: phone.mainContext))
+    #expect(received.restStartedAt == started)
+
+    set.stopRest(at: started.addingTimeInterval(45))
+    try SyncMerger.mergeInProgress(.make(for: session), into: phone.mainContext)
+    try SyncMerger.mergeInProgress(running, into: phone.mainContext)
+    #expect(received.restStartedAt == nil)
+    #expect(received.restSeconds == 45)
+}
+
+@MainActor
+@Test("구버전의 진행 중 휴식을 복원하고 늦게 온 세트 결과로 지우지 않는다")
+func legacyRestSurvivesDelayedRecord() throws {
+    let watch = try makeContainer()
+    let phone = try makeContainer()
+    let session = startedSession(named: "워치 운동", in: watch.mainContext)
+    let set = try #require(session.allSets.first)
+    set.markSuccess(at: session.startedAt)
+    let queued = try #require(SetResultPayload.make(for: set))
+    let started = session.startedAt.addingTimeInterval(10)
+    var legacy = queued
+    legacy.restStartedAt = started
+    let decoded = try JSONDecoder().decode(SetResultPayload.self, from: JSONEncoder().encode(legacy))
+
+    let received = try #require(try SyncMerger.merge(decoded, into: phone.mainContext))
+    try SyncMerger.merge(queued, into: phone.mainContext)
+    #expect(received.restStartedAt == started)
+}
+
+@MainActor
+@Test("더 최신 세트 결과가 있어도 다른 기기의 휴식 종료는 반영된다")
+func newerResultPreservesIndependentRestUpdate() throws {
+    let watch = try makeContainer()
+    let phone = try makeContainer()
+    let session = startedSession(named: "워치 운동", in: watch.mainContext)
+    let set = try #require(session.allSets.first)
+    let recorded = session.startedAt
+    set.markSuccess(at: recorded)
+    let queued = try #require(SetResultPayload.make(for: set))
+    let received = try #require(try SyncMerger.merge(queued, into: phone.mainContext))
+    received.markFailure(actualReps: 3, at: recorded.addingTimeInterval(15))
+
+    set.startRest(at: recorded.addingTimeInterval(5))
+    set.stopRest(at: recorded.addingTimeInterval(25))
+    try SyncMerger.mergeInProgress(.make(for: session), into: phone.mainContext)
+    #expect(received.result == .failure)
+    #expect(received.restSeconds == 20)
+}

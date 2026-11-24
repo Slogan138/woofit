@@ -17,6 +17,8 @@ public final class SessionSet {
     public var restSeconds: Double?
     /// 휴식 측정 중일 때만 값이 있다. 세션 복원에 쓴다.
     public var restStartedAt: Date?
+    /// 세트 기록 후에도 바뀌는 휴식 상태의 병합 기준(F-8).
+    public var restUpdatedAt: Date?
     public var recordedAt: Date?
 
     public var exercise: SessionExercise?
@@ -103,6 +105,7 @@ public extension SessionSet {
     func startRest(at date: Date = Date()) {
         guard restStartedAt == nil else { return }
         restStartedAt = date
+        restUpdatedAt = date
     }
 
     /// 다시 탭하면 측정 종료. 경과 시간이 이 세트의 휴식 시간이 된다.
@@ -110,6 +113,7 @@ public extension SessionSet {
         guard let started = restStartedAt else { return }
         restSeconds = max(0, date.timeIntervalSince(started))
         restStartedAt = nil
+        restUpdatedAt = date
     }
 
     /// 측정 중 경과 시간. 측정 중이 아니면 `nil`.
