@@ -128,16 +128,33 @@ public enum SyncMerger {
     /// 절대 덮어쓰지 않는다 — 그렇지 않으면 이미 기록된 세트가 스냅샷 병합 순서에 따라
     /// 미수행으로 되돌아갈 수 있다.
     private static func apply(_ payload: SetResultPayload, to set: SessionSet) {
+        mergeRest(payload, into: set)
         guard let newRecordedAt = payload.recordedAt else { return }
         if let existing = set.recordedAt, existing > newRecordedAt { return }
         set.result = payload.result
         set.actualWeight = payload.actualWeight
         set.actualReps = payload.actualReps
-        set.restSeconds = payload.restSeconds
-        // 진행 중인 휴식도 따라간다. 상대가 쉬기 시작한 것을 모르면 잠금화면 시계가
-        // 뜨지 않고, 멈춘 것을 모르면 영영 돌아간다(F-16).
-        set.restStartedAt = payload.restStartedAt
         set.recordedAt = newRecordedAt
+    }
+
+    private static func mergeRest(_ payload: SetResultPayload, into set: SessionSet) {
+        if let incoming = payload.restUpdatedAt {
+            let existing = set.restUpdatedAt ?? set.restStartedAt
+            if let existing, incoming < existing { return }
+            // 같은 순간에 시작·종료했다면 재전송 순서와 관계없이 종료를 유지한다.
+            if incoming == existing, set.restStartedAt == nil, payload.restStartedAt != nil { return }
+        } else {
+            // 구버전에는 변경 시각이 없다. 명시적으로 기록된 시작·종료가 우선한다.
+            guard set.restUpdatedAt == nil,
+                  payload.restStartedAt != nil || payload.restSeconds != nil,
+                  let recorded = payload.recordedAt else { return }
+            if let existing = set.recordedAt, recorded < existing { return }
+            if let started = payload.restStartedAt, let existing = set.restStartedAt,
+               started < existing { return }
+        }
+        set.restStartedAt = payload.restStartedAt
+        set.restSeconds = payload.restSeconds
+        set.restUpdatedAt = payload.restUpdatedAt
     }
 
     private static func fetchOrCreateSession(
